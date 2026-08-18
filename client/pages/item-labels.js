@@ -124,18 +124,24 @@ export async function renderItemLabels(container, params) {
       }
 
       // 2. Render QR Code (2D Symbol)
-      if (typeof QRCode !== 'undefined' && qrCanvas) {
+      if (qrCanvas) {
         try {
-          QRCode.toCanvas(qrCanvas, barcodeValue, {
-            width: 78,
-            margin: 1,
-            color: {
-              dark: '#0f172a',
-              light: '#ffffff',
-            },
-          });
+          if (window.MatixQR && typeof window.MatixQR.toCanvas === 'function') {
+            window.MatixQR.toCanvas(qrCanvas, barcodeValue, {
+              width: 78,
+              margin: 1,
+              colorDark: '#0f172a',
+              colorLight: '#ffffff',
+            });
+          } else if (typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function') {
+            QRCode.toCanvas(qrCanvas, barcodeValue, {
+              width: 78,
+              margin: 1,
+              color: { dark: '#0f172a', light: '#ffffff' },
+            });
+          }
         } catch (err) {
-          console.warn('QRCode error:', err);
+          console.warn('QR render error:', err);
         }
       }
     });

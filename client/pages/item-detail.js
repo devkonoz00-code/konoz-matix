@@ -212,14 +212,61 @@ export async function renderItemDetail(container, params) {
     document.getElementById('itm-primary-barcode').textContent = prim ? prim.code : 'None';
 
     if (barcodes.length > 0) {
-      barcodesList.innerHTML = barcodes.map(b => `
-        <a href="#/items/labels?ids=${itemId}" class="barcode-link" style="padding: 0.5rem 0.85rem; font-size: 0.88rem; text-decoration: none;">
-          <span style="font-family: var(--font-mono); font-weight: 700;">${b.code}</span>
-          <span class="badge badge-secondary" style="font-size: 0.65rem;">${b.type}</span>
-          ${b.isPrimary ? '<span class="badge badge-success" style="font-size: 0.65rem;">Primary</span>' : ''}
-          <span style="font-size: 0.75rem; color: var(--primary);">🖨️</span>
-        </a>
-      `).join('');
+      barcodesList.innerHTML = `
+        <div style="width: 100%; display: flex; gap: 1.5rem; align-items: center; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); flex-wrap: wrap;">
+          <div style="background: #fff; padding: 0.75rem; border-radius: var(--radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+            <canvas id="detail-qr-canvas" style="width: 110px; height: 110px;"></canvas>
+            <span style="font-size: 0.7rem; color: #0f172a; font-weight: 700; margin-top: 0.35rem;">QR CODE</span>
+          </div>
+          <div style="flex: 1; min-width: 200px;">
+            <div style="background: #fff; padding: 0.5rem; border-radius: var(--radius-sm); display: inline-block; margin-bottom: 0.75rem;">
+              <svg id="detail-barcode-svg"></svg>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+              ${barcodes.map(b => `
+                <a href="#/items/labels?ids=${itemId}" class="barcode-link" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; text-decoration: none;">
+                  <span style="font-family: var(--font-mono); font-weight: 700;">${b.code}</span>
+                  <span class="badge badge-secondary" style="font-size: 0.65rem;">${b.type}</span>
+                  ${b.isPrimary ? '<span class="badge badge-success" style="font-size: 0.65rem;">Primary</span>' : ''}
+                </a>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Render Barcode and QR Code on item details
+      const primaryCode = prim ? prim.code : item.itemCode;
+      const detailCanvas = document.getElementById('detail-qr-canvas');
+      const detailSvg = document.getElementById('detail-barcode-svg');
+
+      if (detailCanvas) {
+        if (window.MatixQR && typeof window.MatixQR.toCanvas === 'function') {
+          window.MatixQR.toCanvas(detailCanvas, primaryCode, { width: 110, margin: 1 });
+        } else if (typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function') {
+          QRCode.toCanvas(detailCanvas, primaryCode, { width: 110, margin: 1 });
+        }
+      }
+
+      if (typeof JsBarcode !== 'undefined' && detailSvg) {
+        try {
+          const format = (prim?.type === 'EAN-13' && primaryCode.length === 13) ? 'EAN13' : 'CODE128';
+          JsBarcode(detailSvg, primaryCode, {
+            format,
+            lineColor: '#0f172a',
+            width: 1.5,
+            height: 40,
+            displayValue: true,
+            fontSize: 11,
+            margin: 2,
+            font: 'monospace',
+          });
+        } catch {
+          try {
+            JsBarcode(detailSvg, primaryCode, { format: 'CODE128', lineColor: '#0f172a', width: 1.5, height: 40, displayValue: true });
+          } catch {}
+        }
+      }
     } else {
       barcodesList.innerHTML = `<p style="color: var(--text-muted);">No barcodes attached to this item.</p>`;
     }

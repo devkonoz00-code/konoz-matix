@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MATIX — Material Tracking & Project Logistics</title>
+  <meta name="description" content="Enterprise cloud tracking layer for construction material movements, equipment logistics, and site asset tracking">
+  
+  <!-- PWA & Mobile Web App Meta -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='128' fill='%232563eb'/%3E%3Cpath d='M120 180h80v180h-80zM216 140h80v220h-80zM312 220h80v140h-80z' fill='%23ffffff'/%3E%3Ccircle cx='352' cy='160' r='30' fill='%2338bdf8'/%3E%3C/svg%3E">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./css/main.css">
+
+  <!-- JsBarcode and QRCode for Barcode & QR Label Printing -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <!-- html5-qrcode for Camera Barcode / QR Scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+  <div id="app-root">
+    <!-- Desktop Sidebar Navigation -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">M</div>
+        <div class="brand-info">
+          <h1>MATIX</h1>
+          <span data-i18n="app_tagline">Project Logistics</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Overview</div>
+        <a href="#/dashboard" class="nav-link active" id="nav-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <a href="#/projects" class="nav-link" id="nav-projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span data-i18n="nav_projects">Projects</span>
+        </a>
+        <a href="#/items" class="nav-link" id="nav-items">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span data-i18n="nav_items">Catalog & Stock</span>
+        </a>
+        <a href="#/scanner" class="nav-link" id="nav-scanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+          <span data-i18n="nav_scanner">Scan Barcode</span>
+        </a>
+
+        <div class="nav-section-title">Operations & Ledger</div>
+        <a href="#/requests" class="nav-link" id="nav-requests">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span data-i18n="nav_requests">Material Requests</span>
+        </a>
+        <a href="#/movements" class="nav-link" id="nav-movements">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 11l4-4-4-4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/><path d="M7 13l-4 4 4 4"/><path d="M3 17h12a4 4 0 0 0 4-4v-1"/></svg>
+          <span data-i18n="nav_movements">Movement Ledger</span>
+        </a>
+        <a href="#/transfers" class="nav-link" id="nav-transfers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+          <span data-i18n="nav_transfers">Transfers</span>
+        </a>
+        <a href="#/returns" class="nav-link" id="nav-returns">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <span data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="#/documents" class="nav-link" id="nav-documents">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span data-i18n="nav_documents">Company Documents</span>
+        </a>
+
+        <div class="nav-section-title">Administration</div>
+        <a href="#/users" class="nav-link" id="nav-users">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span data-i18n="nav_users">Team & Users</span>
+        </a>
+        <a href="#/reports" class="nav-link" id="nav-reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span data-i18n="nav_reports">Reports & Exports</span>
+        </a>
+        <a href="#/audit-logs" class="nav-link" id="nav-audit-logs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span data-i18n="nav_audit_logs">Audit Trail</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-snippet" id="sidebar-user-card">
+          <div class="user-avatar" id="sidebar-user-avatar">U</div>
+          <div class="user-meta">
+            <div class="user-name" id="sidebar-user-name">Loading...</div>
+            <div class="user-role-badge" id="sidebar-user-role">Role</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <!-- Top Sticky Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="icon-button mobile-only" id="btn-toggle-sidebar" aria-label="Toggle Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <h2 class="page-header-title" id="page-title">Dashboard</h2>
+        </div>
+
+        <div class="header-right">
+          <!-- Language Selector -->
+          <div class="lang-selector">
+            <button class="lang-btn active" data-lang="en">EN</button>
+            <button class="lang-btn" data-lang="fr">FR</button>
+            <button class="lang-btn" data-lang="ar">عربي</button>
+          </div>
+
+          <!-- Notifications Button & Dropdown Trigger -->
+          <button class="icon-button" id="btn-notifications" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="badge-dot" id="notif-badge" style="display: none;"></span>
+          </button>
+
+          <!-- Logout Button -->
+          <button class="icon-button" id="btn-logout" title="Sign Out" aria-label="Sign Out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Dynamic Page Container -->
+      <main id="main-content" class="content-container">
+        <!-- SPA views render here -->
+      </main>
+    </div>
+
+    <!-- Mobile Bottom Bar -->
+    <nav class="mobile-nav">
+      <a href="#/dashboard" class="mobile-nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span data-i18n="nav_dashboard">Dashboard</span>
+      </a>
+      <a href="#/projects" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span data-i18n="nav_projects">Projects</span>
+      </a>
+      <a href="#/scanner" class="mobile-nav-item scan-fab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+      </a>
+      <a href="#/requests" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        <span data-i18n="nav_requests">Requests</span>
+      </a>
+      <a href="#/movements" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 11l4-4-4-4"/><path d="M21 7H9a4 4 0 0 0-4 4v1"/><path d="M7 13l-4 4 4 4"/></svg>
+        <span data-i18n="nav_movements">Ledger</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- App Bootstrap JS -->
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -12,7 +12,9 @@ export function renderLogin(container) {
     <div style="min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
       <div class="card" style="width: 100%; max-width: 440px; padding: 2.25rem;">
         <div style="text-align: center; margin-bottom: 2rem;">
-          <div class="brand-logo" style="margin: 0 auto 1rem; width: 56px; height: 56px; font-size: 1.75rem;">M</div>
+          <div class="brand-logo" style="margin: 0 auto 1rem; width: 72px; height: 72px; box-shadow: none;">
+            <img src="./assets/logo.png" alt="Konoz Logo" style="width: 100%; height: 100%; object-fit: contain;">
+          </div>
           <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary);">MATIX</h2>
           <p style="color: var(--text-secondary); font-size: 0.85rem;" data-i18n="msg_login_subtitle">
             Cloud tracking layer for material movements & site logistics

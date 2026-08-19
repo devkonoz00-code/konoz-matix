@@ -142,6 +142,8 @@ export async function renderTransfers(container) {
       </form>
     `;
 
+    const trfKey = 'trf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
     const modal = showModal({
       title: 'Initiate Inter-Project Transfer',
       content,
@@ -177,6 +179,8 @@ export async function renderTransfers(container) {
             toLocation: { kind: 'PROJECT', id: destId },
             note,
             lines,
+          }, {
+            headers: { 'Idempotency-Key': trfKey }
           });
           showToast(i18n.t('msg_transfer_submitted'), 'success');
           loadTransfers();

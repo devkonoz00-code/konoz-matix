@@ -195,8 +195,11 @@ export async function renderRequests(container) {
           return false;
         }
 
+        const reqKey = 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
         try {
-          const res = await api.post('/requests', { projectId, priority, note, lines });
+          const res = await api.post('/requests', { projectId, priority, note, lines }, {
+            headers: { 'Idempotency-Key': reqKey }
+          });
           showToast(`Request ${res.data?.request?.requestNumber || ''} drafted successfully`, 'success');
           loadRequests();
           return true;

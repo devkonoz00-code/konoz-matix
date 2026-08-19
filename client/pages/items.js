@@ -331,6 +331,8 @@ export async function renderItems(container) {
       </form>
     `;
 
+    const itemFormKey = 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
     const modal = showModal({
       title: 'إضافة مادة جديدة في الكتالوج وتوجيه المخزون',
       content,
@@ -385,6 +387,8 @@ export async function renderItems(container) {
             minimumStock,
             brand,
             barcode,
+          }, {
+            headers: { 'Idempotency-Key': itemFormKey }
           });
 
           if (initialQty > 0) {
@@ -421,8 +425,13 @@ export async function renderItems(container) {
         return;
       }
 
+      const catKey = 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+      inlineSaveBtn.disabled = true;
+      const origText = inlineSaveBtn.innerHTML;
+      inlineSaveBtn.innerHTML = 'جاري الحفظ...';
+
       try {
-        const res = await api.post('/categories', { name: newCatName });
+        const res = await api.post('/categories', { name: newCatName }, { headers: { 'Idempotency-Key': catKey } });
         const newCat = res.data;
         showToast(`تم إنشاء الصنف "${newCat.name}" بنجاح!`, 'success');
 
@@ -437,6 +446,9 @@ export async function renderItems(container) {
         inlineInput.value = '';
       } catch (err) {
         showToast(err.message, 'error');
+      } finally {
+        inlineSaveBtn.disabled = false;
+        inlineSaveBtn.innerHTML = origText;
       }
     });
   });
@@ -450,6 +462,7 @@ export async function renderItems(container) {
       ]);
       const allItems = itemsRes.data || [];
       const warehouses = whRes.data || [];
+      const receiveKey = 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
 
       const content = `
         <form id="form-receive-stock">
@@ -516,6 +529,8 @@ export async function renderItems(container) {
               referenceDocNumber: docNum || undefined,
               note: note || 'استلام مواد بالمستودع',
               lines: [{ itemId, quantity: qty }],
+            }, {
+              headers: { 'Idempotency-Key': receiveKey }
             });
 
             showToast(`تم استلام ${qty} بنجاح وتحديث الرصيد بالمستودع!`, 'success');

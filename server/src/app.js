@@ -121,6 +121,8 @@ const reportRoutes = require('./routes/reportRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
+const idempotency = require('./middleware/idempotency');
+
 // Apply strict rate limiting to auth endpoints
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/refresh', authLimiter);
@@ -128,6 +130,9 @@ app.use('/api/reports/export', exportLimiter);
 
 // General API rate limiter across all other /api routes
 app.use('/api', apiLimiter);
+
+// Idempotency protection for creation requests
+app.use('/api', idempotency);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

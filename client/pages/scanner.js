@@ -127,6 +127,8 @@ export function renderScanner(container) {
     }
   }
 
+  let isScanningActive = false;
+
   async function startScanner() {
     try {
       await waitForLibrary(8000);
@@ -138,14 +140,43 @@ export function renderScanner(container) {
 
     try {
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode('reader');
+        let formatsToSupport = undefined;
+        if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+          formatsToSupport = [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.AZTEC,
+          ];
+        }
+
+        html5QrCode = new Html5Qrcode('reader', {
+          formatsToSupport,
+          verbose: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true,
+          },
+        });
       }
+
+      isScanningActive = true;
 
       await html5QrCode.start(
         { facingMode: 'environment' },
         {
           fps: 15,
-          qrbox: { width: 250, height: 180 },
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.75);
+            const size = Math.max(edge, 200);
+            return { width: size, height: size };
+          },
         },
         onScanSuccess,
         (_errorMessage) => {}
@@ -157,6 +188,7 @@ export function renderScanner(container) {
       if (laser) laser.style.display = 'block';
 
     } catch (err) {
+      isScanningActive = false;
       console.warn('Camera start error:', err);
       const errStr = String(err?.message || err || '').toLowerCase();
       if (errStr.includes('notallowed') || errStr.includes('permission')) {
@@ -170,9 +202,12 @@ export function renderScanner(container) {
   }
 
   async function stopScanner() {
+    isScanningActive = false;
     if (html5QrCode) {
       try {
-        await html5QrCode.stop();
+        if (html5QrCode.isScanning) {
+          await html5QrCode.stop();
+        }
         startBtn.style.display = 'inline-flex';
         stopBtn.style.display = 'none';
         const laser = document.getElementById('scanner-laser-line');
@@ -187,8 +222,14 @@ export function renderScanner(container) {
   stopBtn.addEventListener('click', stopScanner);
 
   async function onScanSuccess(decodedText) {
+    if (!isScanningActive) return;
+    isScanningActive = false;
+
+    // Immediately halt camera feed frame processing on first successful decode (§10, Bug 2)
+    await stopScanner();
+
     if (navigator.vibrate) navigator.vibrate(100);
-    showToast(`Barcode detected: ${decodedText}`, 'info');
+    showToast(`Code detected: ${decodedText}`, 'info');
     lookupBarcode(decodedText);
   }
 
@@ -280,8 +321,11 @@ export function renderScanner(container) {
           <!-- Contextual Action Buttons (§13) -->
           ${actionsHtml}
 
-          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;">
-            <a href="#/items/${item._id}" class="btn btn-outline" style="flex: 1;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem;">
+            <button class="btn btn-primary" id="btn-scan-again-found" style="flex: 1;">
+              <span>📷 مسح عنصر آخر / Scan Another</span>
+            </button>
+            <a href="#/items/${item._id}" class="btn btn-outline">
               <span data-i18n="btn_view_history">Full Movement History</span> &rarr;
             </a>
             <a href="#/items/labels?ids=${item._id}" class="btn btn-outline">
@@ -292,6 +336,12 @@ export function renderScanner(container) {
       `;
 
       i18n.translateDOM(resultContainer);
+
+      // Bind Scan Another button
+      resultContainer.querySelector('#btn-scan-again-found')?.addEventListener('click', () => {
+        resultContainer.style.display = 'none';
+        startScanner();
+      });
 
       // Bind contextual action buttons
       resultContainer.querySelectorAll('.btn-contextual-action').forEach(btn => {
@@ -307,20 +357,32 @@ export function renderScanner(container) {
       resultContainer.innerHTML = `
         <div class="card" style="border: 1px solid var(--danger); text-align: center; padding: 2rem;">
           <h4 style="color: var(--danger); font-size: 1.1rem; margin-bottom: 0.5rem;" data-i18n="scanner_not_found">Barcode Not Registered</h4>
-          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
             No item corresponds to barcode <code>${code}</code> in the MATIX ledger.
           </p>
-          ${canRegister ? `
-            <a href="#/items" class="btn btn-sm btn-primary">Register New Item with this Code</a>
-          ` : ''}
+          <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="btn-scan-again-notfound">
+              <span>📷 مسح كود آخر / Scan Again</span>
+            </button>
+            ${canRegister ? `
+              <a href="#/items" class="btn btn-outline">Register New Item with this Code</a>
+            ` : ''}
+          </div>
         </div>
       `;
       i18n.translateDOM(resultContainer);
+
+      resultContainer.querySelector('#btn-scan-again-notfound')?.addEventListener('click', () => {
+        resultContainer.style.display = 'none';
+        startScanner();
+      });
     }
   }
 
   // Handle Contextual Action Execution Modal (§13)
   async function handleContextualAction(act, item, barcode) {
+    const actionKey = 'scan_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
     if (act.actionType === 'DIRECT_ISSUE' || act.actionType === 'ISSUE') {
       let allowedProjects = act.allowedProjects;
       if (!allowedProjects || allowedProjects.length === 0) {
@@ -380,6 +442,8 @@ export function renderScanner(container) {
               projectId,
               note: note || 'Direct issue via mobile scanner',
               lines: [{ itemId: item._id, quantity: qty }],
+            }, {
+              headers: { 'Idempotency-Key': actionKey }
             });
             showToast(`Issued ${qty} ${item.unit} of ${item.name} to project site!`, 'success');
             lookupBarcode(barcode);
@@ -441,6 +505,8 @@ export function renderScanner(container) {
               toLocation: { kind: 'PROJECT', id: destId },
               note: note || 'Transfer initiated via scanner',
               lines: [{ itemId: item._id, quantity: qty }],
+            }, {
+              headers: { 'Idempotency-Key': actionKey }
             });
             showToast('Transfer submitted! Awaiting destination site confirmation.', 'success');
             lookupBarcode(barcode);
@@ -502,6 +568,8 @@ export function renderScanner(container) {
               toLocation: { kind: 'WAREHOUSE', id: whId },
               note: note || 'Return initiated via scanner',
               lines: [{ itemId: item._id, quantity: qty }],
+            }, {
+              headers: { 'Idempotency-Key': actionKey }
             });
             showToast('Return submitted! Awaiting warehouse confirmation.', 'success');
             lookupBarcode(barcode);

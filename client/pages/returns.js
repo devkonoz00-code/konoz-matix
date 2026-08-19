@@ -145,6 +145,8 @@ export async function renderReturns(container) {
       </form>
     `;
 
+    const retKey = 'ret_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
     const modal = showModal({
       title: 'Initiate Return to Warehouse',
       content,
@@ -175,6 +177,8 @@ export async function renderReturns(container) {
             toLocation: { kind: 'WAREHOUSE', id: destId },
             note,
             lines,
+          }, {
+            headers: { 'Idempotency-Key': retKey }
           });
           showToast(i18n.t('msg_return_submitted'), 'success');
           loadReturns();

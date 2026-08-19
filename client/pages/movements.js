@@ -246,6 +246,8 @@ export async function renderMovements(container) {
       </form>
     `;
 
+    const movKey = 'mov_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+
     const modal = showModal({
       title: 'Record Movement in Ledger',
       content,
@@ -286,7 +288,9 @@ export async function renderMovements(container) {
         }
 
         try {
-          await api.post('/movements', { type, fromLocation, toLocation, projectId, companyDocumentId, note, lines });
+          await api.post('/movements', { type, fromLocation, toLocation, projectId, companyDocumentId, note, lines }, {
+            headers: { 'Idempotency-Key': movKey }
+          });
           showToast('Movement recorded and confirmed in ledger!', 'success');
           loadMovements();
           return true;

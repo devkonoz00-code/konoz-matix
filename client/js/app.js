@@ -71,9 +71,40 @@ export function showModal({ title, content, confirmText = 'Confirm', cancelText 
   backdrop.querySelector('.modal-cancel-btn').addEventListener('click', close);
 
   if (onConfirm) {
-    backdrop.querySelector('.modal-confirm-btn').addEventListener('click', async () => {
-      const result = await onConfirm(backdrop);
-      if (result !== false) close();
+    const confirmBtn = backdrop.querySelector('.modal-confirm-btn');
+    const cancelBtn = backdrop.querySelector('.modal-cancel-btn');
+    let isSubmitting = false;
+
+    confirmBtn?.addEventListener('click', async () => {
+      if (isSubmitting) return;
+      isSubmitting = true;
+      confirmBtn.disabled = true;
+      if (cancelBtn) cancelBtn.disabled = true;
+      const originalHtml = confirmBtn.innerHTML;
+      confirmBtn.innerHTML = `
+        <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 0.8s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <span>Processing...</span>
+        </span>
+      `;
+
+      try {
+        const result = await onConfirm(backdrop);
+        if (result !== false) {
+          close();
+        } else {
+          isSubmitting = false;
+          confirmBtn.disabled = false;
+          if (cancelBtn) cancelBtn.disabled = false;
+          confirmBtn.innerHTML = originalHtml;
+        }
+      } catch (err) {
+        isSubmitting = false;
+        confirmBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+        confirmBtn.innerHTML = originalHtml;
+        throw err;
+      }
     });
   }
 

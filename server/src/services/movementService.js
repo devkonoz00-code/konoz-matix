@@ -152,7 +152,7 @@ const movementService = {
 
       // Determine auto-confirm status (§8)
       // RECEIPT and ADJUSTMENT resolve immediately. ISSUE, TRANSFER, and RETURN start as PENDING.
-      const autoConfirm = ['RECEIPT', 'ADJUSTMENT'].includes(data.type) || Boolean(data.autoConfirm);
+      const autoConfirm = ['RECEIPT', 'ISSUE', 'ADJUSTMENT'].includes(data.type) || Boolean(data.autoConfirm);
 
       const movementPayload = {
         movementNumber,

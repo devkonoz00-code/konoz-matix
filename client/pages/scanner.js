@@ -57,9 +57,52 @@ export function renderScanner(container) {
   const startBtn = document.getElementById('btn-start-camera');
   const stopBtn = document.getElementById('btn-stop-camera');
 
+  function showReaderError(message, showRetry = true) {
+    const reader = document.getElementById('reader');
+    if (!reader) return;
+    reader.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; padding: 1.5rem; text-align: center;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.8;">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        <p style="color: #f87171; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">${message}</p>
+        ${showRetry ? '<button class="btn btn-sm btn-primary" id="btn-retry-scanner" style="margin-top: 0.75rem;">Tap to Retry</button>' : ''}
+      </div>
+    `;
+    if (showRetry) {
+      document.getElementById('btn-retry-scanner')?.addEventListener('click', () => {
+        reader.innerHTML = '<div id="scanner-laser-line" style="display:none;"></div>';
+        startScanner();
+      });
+    }
+    startBtn.style.display = 'inline-flex';
+    stopBtn.style.display = 'none';
+  }
+
+  function waitForLibrary(timeoutMs = 8000) {
+    return new Promise((resolve, reject) => {
+      if (typeof Html5Qrcode !== 'undefined') return resolve();
+      const interval = 500;
+      let elapsed = 0;
+      const timer = setInterval(() => {
+        elapsed += interval;
+        if (typeof Html5Qrcode !== 'undefined') {
+          clearInterval(timer);
+          resolve();
+        } else if (elapsed >= timeoutMs) {
+          clearInterval(timer);
+          reject(new Error('LIBRARY_TIMEOUT'));
+        }
+      }, interval);
+    });
+  }
+
   async function startScanner() {
-    if (typeof Html5Qrcode === 'undefined') {
-      showToast('Scanner library loading... please wait', 'info');
+    try {
+      await waitForLibrary(8000);
+    } catch (_) {
+      console.error('html5-qrcode library failed to load within 8 seconds');
+      showReaderError('Camera scanner library failed to load. Check your internet connection and try again.');
       return;
     }
 
@@ -85,7 +128,14 @@ export function renderScanner(container) {
 
     } catch (err) {
       console.warn('Camera start error:', err);
-      showToast(i18n.t('scanner_permission_denied') || 'Camera permission denied or camera unavailable', 'error');
+      const errStr = String(err?.message || err || '').toLowerCase();
+      if (errStr.includes('notallowed') || errStr.includes('permission')) {
+        showReaderError('Camera permission denied. Please allow camera access in your browser settings, then tap retry.');
+      } else if (errStr.includes('notfound') || errStr.includes('device')) {
+        showReaderError('No camera found on this device. Try using a device with a camera, or use manual entry below.', false);
+      } else {
+        showReaderError("Camera didn't start — tap to retry.");
+      }
     }
   }
 

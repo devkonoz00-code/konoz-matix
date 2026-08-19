@@ -79,29 +79,58 @@ export function renderScanner(container) {
     stopBtn.style.display = 'none';
   }
 
-  function waitForLibrary(timeoutMs = 8000) {
+  function loadScript(src) {
     return new Promise((resolve, reject) => {
-      if (typeof Html5Qrcode !== 'undefined') return resolve();
-      const interval = 500;
-      let elapsed = 0;
-      const timer = setInterval(() => {
-        elapsed += interval;
-        if (typeof Html5Qrcode !== 'undefined') {
-          clearInterval(timer);
-          resolve();
-        } else if (elapsed >= timeoutMs) {
-          clearInterval(timer);
-          reject(new Error('LIBRARY_TIMEOUT'));
-        }
-      }, interval);
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) {
+        existing.remove();
+      }
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(s);
     });
+  }
+
+  async function waitForLibrary(timeoutMs = 8000) {
+    if (typeof Html5Qrcode !== 'undefined') return;
+
+    const sources = [
+      'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+      'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+    ];
+
+    const startTime = Date.now();
+
+    for (const src of sources) {
+      if (typeof Html5Qrcode !== 'undefined') return;
+      try {
+        await Promise.race([
+          loadScript(src),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500)),
+        ]);
+        if (typeof Html5Qrcode !== 'undefined') return;
+      } catch (e) {
+        console.warn(`Attempt to load scanner script from ${src} failed:`, e);
+      }
+    }
+
+    while (typeof Html5Qrcode === 'undefined' && (Date.now() - startTime) < timeoutMs) {
+      await new Promise(r => setTimeout(r, 250));
+    }
+
+    if (typeof Html5Qrcode === 'undefined') {
+      throw new Error('LIBRARY_TIMEOUT');
+    }
   }
 
   async function startScanner() {
     try {
       await waitForLibrary(8000);
     } catch (_) {
-      console.error('html5-qrcode library failed to load within 8 seconds');
+      console.error('html5-qrcode library failed to load within timeout');
       showReaderError('Camera scanner library failed to load. Check your internet connection and try again.');
       return;
     }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matix-v1.0.0';
+const CACHE_NAME = 'matix-v1.0.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const ASSETS_TO_CACHE = [
   './js/api.js',
   './js/router.js',
   './js/i18n.js',
+  './js/qr-helper.js',
+  './js/html5-qrcode.min.js',
+  './pages/scanner.js',
   './js/locales/en.json',
   './js/locales/fr.json',
   './js/locales/ar.json'

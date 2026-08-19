@@ -98,6 +98,7 @@ export function renderScanner(container) {
     if (typeof Html5Qrcode !== 'undefined') return;
 
     const sources = [
+      './js/html5-qrcode.min.js',
       'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
       'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
     ];

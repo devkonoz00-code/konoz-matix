@@ -208,14 +208,44 @@ export function renderScanner(container) {
         if (html5QrCode.isScanning) {
           await html5QrCode.stop();
         }
-        startBtn.style.display = 'inline-flex';
-        stopBtn.style.display = 'none';
-        const laser = document.getElementById('scanner-laser-line');
-        if (laser) laser.style.display = 'none';
       } catch (err) {
         console.warn('Error stopping scanner:', err);
       }
+      try {
+        html5QrCode.clear();
+      } catch (_) {}
+      html5QrCode = null;
+      startBtn.style.display = 'inline-flex';
+      stopBtn.style.display = 'none';
+      const laser = document.getElementById('scanner-laser-line');
+      if (laser) laser.style.display = 'none';
     }
+  }
+
+  async function resumeOrRestartScanner() {
+    const resultContainer = document.getElementById('scanner-result');
+    if (resultContainer) resultContainer.style.display = 'none';
+
+    // If html5QrCode is currently paused, resume instantly without re-acquiring camera
+    if (html5QrCode && html5QrCode.isScanning) {
+      try {
+        html5QrCode.resume();
+        isScanningActive = true;
+        const laser = document.getElementById('scanner-laser-line');
+        if (laser) laser.style.display = 'block';
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+        document.getElementById('reader')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      } catch (err) {
+        console.warn('Camera resume failed, performing clean restart:', err);
+      }
+    }
+
+    // Clean restart if not paused
+    await stopScanner();
+    await startScanner();
+    document.getElementById('reader')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   startBtn.addEventListener('click', startScanner);
@@ -225,8 +255,18 @@ export function renderScanner(container) {
     if (!isScanningActive) return;
     isScanningActive = false;
 
-    // Immediately halt camera feed frame processing on first successful decode (§10, Bug 2)
-    await stopScanner();
+    // Immediately pause scanner so frame processing halts without dropping hardware stream
+    try {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.pause(true);
+      }
+    } catch (e) {
+      console.warn('Pause error, stopping instead:', e);
+      await stopScanner();
+    }
+
+    const laser = document.getElementById('scanner-laser-line');
+    if (laser) laser.style.display = 'none';
 
     if (navigator.vibrate) navigator.vibrate(100);
     showToast(`Code detected: ${decodedText}`, 'info');
@@ -339,8 +379,7 @@ export function renderScanner(container) {
 
       // Bind Scan Another button
       resultContainer.querySelector('#btn-scan-again-found')?.addEventListener('click', () => {
-        resultContainer.style.display = 'none';
-        startScanner();
+        resumeOrRestartScanner();
       });
 
       // Bind contextual action buttons
@@ -373,8 +412,7 @@ export function renderScanner(container) {
       i18n.translateDOM(resultContainer);
 
       resultContainer.querySelector('#btn-scan-again-notfound')?.addEventListener('click', () => {
-        resultContainer.style.display = 'none';
-        startScanner();
+        resumeOrRestartScanner();
       });
     }
   }

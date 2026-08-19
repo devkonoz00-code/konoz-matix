@@ -977,10 +977,22 @@ html[dir="rtl"] .toast-container {
   }
 }
 
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 90;
+  transition: opacity var(--transition-normal);
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 900px) {
   .sidebar {
     transform: translateX(-100%);
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
   }
 
   html[dir="rtl"] .sidebar {
@@ -989,6 +1001,10 @@ html[dir="rtl"] .toast-container {
 
   .sidebar.mobile-open {
     transform: translateX(0);
+  }
+
+  .sidebar-overlay.active {
+    display: block;
   }
 
   .main-wrapper {

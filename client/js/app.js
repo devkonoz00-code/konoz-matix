@@ -348,10 +348,41 @@ async function initApp() {
     router.navigate('/login');
   });
 
-  // Mobile menu toggle
-  document.getElementById('btn-toggle-sidebar')?.addEventListener('click', () => {
-    const sidebar = document.getElementById('app-sidebar');
-    sidebar.classList.toggle('mobile-open');
+  // Mobile menu controls
+  const sidebar = document.getElementById('app-sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggleBtn = document.getElementById('btn-toggle-sidebar');
+  const closeBtn = document.getElementById('btn-close-sidebar');
+
+  function openSidebar() {
+    sidebar?.classList.add('mobile-open');
+    overlay?.classList.add('active');
+  }
+
+  function closeSidebar() {
+    sidebar?.classList.remove('mobile-open');
+    overlay?.classList.remove('active');
+  }
+
+  toggleBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (sidebar?.classList.contains('mobile-open')) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  });
+
+  closeBtn?.addEventListener('click', closeSidebar);
+  overlay?.addEventListener('click', closeSidebar);
+
+  // Close mobile sidebar automatically whenever any navigation link is clicked
+  sidebar?.querySelectorAll('.sidebar-nav a').forEach((link) => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 900) {
+        closeSidebar();
+      }
+    });
   });
 
   // Start Router

@@ -314,13 +314,23 @@ export async function renderItems(container) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">صورة المادة / Item Image (اختياري - Cloudinary Upload)</label>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="file" id="inp-item-image-file" class="form-control" accept="image/*" style="font-size: 0.8rem;">
+          <label class="form-label">صورة المادة / Item Image (اختياري)</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
+              🖼️ اختيار من المعرض
+              <input type="file" id="inp-item-image-file" accept="image/jpeg,image/png,image/webp" style="display: none;">
+            </label>
+            <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
+              📷 التقاط بالكاميرا
+              <input type="file" id="inp-item-image-camera" accept="image/jpeg,image/png,image/webp" capture="environment" style="display: none;">
+            </label>
             <input type="hidden" id="inp-item-image-url">
           </div>
           <div id="item-image-preview-box" style="display: none; margin-top: 0.5rem; text-align: center;">
-            <img id="item-image-preview" src="" alt="Preview" style="max-height: 80px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <img id="item-image-preview" src="" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: cover;">
+            <div style="margin-top: 0.25rem;">
+              <button type="button" id="btn-remove-image" class="btn btn-sm btn-outline" style="font-size: 0.72rem; color: var(--danger);">✕ إزالة الصورة</button>
+            </div>
           </div>
         </div>
 
@@ -357,19 +367,23 @@ export async function renderItems(container) {
           return false;
         }
 
-        // Upload file to Cloudinary if selected
+        // Upload file to server if selected (from gallery or camera)
         const fileInput = document.getElementById('inp-item-image-file');
-        if (fileInput && fileInput.files && fileInput.files[0]) {
+        const cameraInput = document.getElementById('inp-item-image-camera');
+        const selectedFile = (fileInput && fileInput.files && fileInput.files[0])
+          || (cameraInput && cameraInput.files && cameraInput.files[0]);
+
+        if (selectedFile) {
           try {
             const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('entityType', 'ITEM');
-            const uploadRes = await api.post('/attachments', formData);
+            formData.append('file', selectedFile);
+            const uploadRes = await api.post('/items/upload-image', formData);
             if (uploadRes.success && uploadRes.data?.url) {
               imageUrl = uploadRes.data.url;
             }
           } catch (uploadErr) {
-            console.warn('Image upload failed, continuing with item creation:', uploadErr);
+            showToast('فشل رفع الصورة: ' + (uploadErr.message || 'خطأ غير معروف'), 'error');
+            return false;
           }
         }
 
@@ -450,6 +464,48 @@ export async function renderItems(container) {
         inlineSaveBtn.disabled = false;
         inlineSaveBtn.innerHTML = origText;
       }
+    });
+
+    // Image preview handlers for gallery and camera inputs
+    function handleImagePreview(file) {
+      const previewBox = modal.querySelector('#item-image-preview-box');
+      const previewImg = modal.querySelector('#item-image-preview');
+      if (file && previewBox && previewImg) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previewImg.src = e.target.result;
+          previewBox.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    const galleryInput = modal.querySelector('#inp-item-image-file');
+    const cameraInput = modal.querySelector('#inp-item-image-camera');
+
+    galleryInput?.addEventListener('change', () => {
+      if (galleryInput.files[0]) {
+        // Clear camera input so only one is active
+        if (cameraInput) cameraInput.value = '';
+        handleImagePreview(galleryInput.files[0]);
+      }
+    });
+
+    cameraInput?.addEventListener('change', () => {
+      if (cameraInput.files[0]) {
+        // Clear gallery input so only one is active
+        if (galleryInput) galleryInput.value = '';
+        handleImagePreview(cameraInput.files[0]);
+      }
+    });
+
+    modal.querySelector('#btn-remove-image')?.addEventListener('click', () => {
+      if (galleryInput) galleryInput.value = '';
+      if (cameraInput) cameraInput.value = '';
+      const previewBox = modal.querySelector('#item-image-preview-box');
+      if (previewBox) previewBox.style.display = 'none';
+      const hiddenUrl = modal.querySelector('#inp-item-image-url');
+      if (hiddenUrl) hiddenUrl.value = '';
     });
   });
 

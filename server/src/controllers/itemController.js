@@ -1,3 +1,6 @@
+const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
 const itemService = require('../services/itemService');
 const stockService = require('../services/stockService');
 const Barcode = require('../models/Barcode');
@@ -5,6 +8,35 @@ const { getNextSequence } = require('../utils/sequence');
 const auditService = require('../services/auditService');
 const { validateRequired, validateEnum } = require('../validators/common');
 const { ITEM_TYPES } = require('../models/Item');
+const cloudinaryService = require('../services/cloudinaryService');
+const { AppError } = require('../middleware/errorHandler');
+
+const uploadsDir = path.resolve(__dirname, '../../../uploads');
+
+/**
+ * Validate magic byte signatures to prevent MIME spoofing.
+ */
+function validateFileSignature(buffer, mimetype) {
+  if (!buffer || buffer.length < 4) return false;
+  if (mimetype === 'image/jpeg') {
+    return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
+  if (mimetype === 'image/png') {
+    return (
+      buffer.length >= 8 &&
+      buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47 &&
+      buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a
+    );
+  }
+  if (mimetype === 'image/webp') {
+    return (
+      buffer.length >= 12 &&
+      buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50
+    );
+  }
+  return false;
+}
 
 const itemController = {
   async list(req, res, next) {
@@ -93,7 +125,52 @@ const itemController = {
       next(error);
     }
   },
+
+  async uploadImage(req, res, next) {
+    try {
+      if (!req.file) {
+        throw new AppError('No image file uploaded', 400, 'NO_FILE');
+      }
+
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        throw new AppError('Only JPEG, PNG, and WebP images are allowed', 400, 'INVALID_FILE_TYPE');
+      }
+
+      if (!validateFileSignature(req.file.buffer, req.file.mimetype)) {
+        throw new AppError('File content does not match the declared image type', 400, 'INVALID_FILE_SIGNATURE');
+      }
+
+      let fileUrl;
+
+      if (cloudinaryService.isCloudinaryConfigured()) {
+        try {
+          const result = await cloudinaryService.uploadBuffer(req.file.buffer, {
+            folder: 'matix/items',
+            resource_type: 'image',
+            allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+          });
+          fileUrl = result.secure_url || result.url;
+        } catch (uploadError) {
+          throw new AppError('Failed to upload image to cloud storage', 502, 'STORAGE_UPLOAD_FAILED');
+        }
+      } else {
+        // Local disk fallback
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        const ext = path.extname(req.file.originalname || '.jpg').toLowerCase();
+        const safeRandomName = `${crypto.randomBytes(16).toString('hex')}${ext}`;
+        const destinationPath = path.join(uploadsDir, safeRandomName);
+        await fs.promises.writeFile(destinationPath, req.file.buffer);
+        fileUrl = `/uploads/${safeRandomName}`;
+      }
+
+      res.status(200).json({ success: true, data: { url: fileUrl } });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = itemController;
-

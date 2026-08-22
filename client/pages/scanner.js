@@ -317,8 +317,20 @@ export function renderScanner(container) {
         `;
       }
 
+      // Build item photo HTML
+      const itemPhotoHtml = item.imageUrl
+        ? `<div style="text-align: center; margin-bottom: 1rem;">
+            <img src="${item.imageUrl}" alt="${item.name}" style="max-height: 180px; max-width: 100%; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);"
+              onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'width:100%;height:140px;background:var(--bg-surface-elevated);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:2.5rem;border:1px solid var(--border-subtle);\\'>📦</div>';">
+          </div>`
+        : `<div style="text-align: center; margin-bottom: 1rem;">
+            <div style="width: 100%; height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>
+          </div>`;
+
       resultContainer.innerHTML = `
         <div class="card" style="border: 2px solid var(--primary); animation: slideIn 0.3s ease;">
+          ${itemPhotoHtml}
+
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
             <div>
               <span class="badge badge-success" style="margin-bottom: 0.35rem;" data-i18n="scanner_item_found">Item Identified</span>

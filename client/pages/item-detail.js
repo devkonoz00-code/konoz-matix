@@ -14,10 +14,15 @@ export async function renderItemDetail(container, params) {
     <div style="margin-bottom: 1.5rem;">
       <a href="#/items" class="btn btn-sm btn-outline" style="margin-bottom: 1rem;">&larr; Back to Catalog</a>
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <span style="font-family: var(--font-mono); color: var(--primary); font-weight: 700;" id="itm-code">Loading...</span>
-          <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;" id="itm-name">—</h2>
-          <p style="color: var(--text-secondary); font-size: 0.85rem;" id="itm-meta">—</p>
+        <div style="display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;">
+          <div id="itm-photo-container" style="width: 84px; height: 84px; border-radius: var(--radius-md); overflow: hidden; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm);">
+            <span style="font-size: 2rem; color: var(--text-muted);">📦</span>
+          </div>
+          <div>
+            <span style="font-family: var(--font-mono); color: var(--primary); font-weight: 700;" id="itm-code">Loading...</span>
+            <h2 style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;" id="itm-name">—</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem;" id="itm-meta">—</p>
+          </div>
         </div>
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
           <button class="btn btn-success btn-sm" id="btn-detail-receive-stock">
@@ -166,6 +171,14 @@ export async function renderItemDetail(container, params) {
     const prjMap = Object.fromEntries(projects.map(p => [p._id, `${p.projectCode} — ${p.name}`]));
 
     // Populate Item Identity
+    const photoContainer = document.getElementById('itm-photo-container');
+    if (photoContainer) {
+      if (item.imageUrl) {
+        photoContainer.innerHTML = `<img src="${item.imageUrl}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span style=\\'font-size: 2rem; color: var(--text-muted);\\'>📦</span>';">`;
+      } else {
+        photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
+      }
+    }
     document.getElementById('itm-code').textContent = item.itemCode;
     document.getElementById('itm-name').textContent = item.name;
     document.getElementById('itm-meta').textContent = `${item.categoryId?.name || 'General'} • ${item.brand || ''} ${item.model || ''}`;

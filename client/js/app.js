@@ -24,11 +24,26 @@ import { renderUsers } from '../pages/users.js';
 import { renderReports } from '../pages/reports.js';
 import { renderAuditLogs } from '../pages/audit-logs.js';
 import { renderSettings } from '../pages/settings.js';
+import { playSound, playSuccessChime, playConfirmBeep, playErrorTone } from './sound.js';
+
+// Export sound functions for direct use across modules
+export { playSound, playSuccessChime, playConfirmBeep, playErrorTone };
 
 // ==========================================================================
 // UI Helpers (Toasts, Modals, Formatters)
 // ==========================================================================
 export function showToast(message, type = 'info') {
+  // Play appropriate sound feedback
+  if (type === 'success') {
+    playSuccessChime();
+  } else if (type === 'error') {
+    playErrorTone();
+  } else if (type === 'warning') {
+    playErrorTone();
+  } else if (type === 'info') {
+    playConfirmBeep();
+  }
+
   const container = document.getElementById('toast-container');
   if (!container) return;
 
@@ -77,6 +92,7 @@ export function showModal({ title, content, confirmText = 'Confirm', cancelText 
 
     confirmBtn?.addEventListener('click', async () => {
       if (isSubmitting) return;
+      playConfirmBeep();
       isSubmitting = true;
       confirmBtn.disabled = true;
       if (cancelBtn) cancelBtn.disabled = true;

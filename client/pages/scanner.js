@@ -4,7 +4,7 @@
  * Renders live camera feed, manual entry, item identity, location, valuation, and contextual action triggers.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, showToast, showModal } from '../js/app.js';
+import { formatMoney, formatDate, showToast, showModal, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
 
@@ -269,6 +269,7 @@ export function renderScanner(container) {
     if (laser) laser.style.display = 'none';
 
     if (navigator.vibrate) navigator.vibrate(100);
+    playConfirmBeep();
     showToast(`Code detected: ${decodedText}`, 'info');
     lookupBarcode(decodedText);
   }
@@ -285,6 +286,7 @@ export function renderScanner(container) {
     try {
       const barcodeRes = await api.get(`/barcodes/${encodeURIComponent(code)}`);
       const { item, currentLocations, lastMovement, contextualActions } = barcodeRes.data;
+      playSuccessChime();
 
       const primaryLoc = currentLocations?.[0];
       const locName = primaryLoc ? primaryLoc.locationName : 'None (Zero Stock)';
@@ -404,6 +406,7 @@ export function renderScanner(container) {
       });
 
     } catch (err) {
+      playErrorTone();
       const canRegister = err.data?.canRegister || err.response?.data?.canRegister || true;
       resultContainer.innerHTML = `
         <div class="card" style="border: 1px solid var(--danger); text-align: center; padding: 2rem;">

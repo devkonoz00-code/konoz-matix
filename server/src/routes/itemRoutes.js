@@ -26,6 +26,7 @@ router.get('/:id/history', itemController.getHistory);
 router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), itemController.create);
 router.patch('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER'), itemController.update);
 router.post('/:id/barcodes', authorize('ADMIN', 'WAREHOUSE_MANAGER'), itemController.addBarcode);
+router.delete('/:id', authorize('ADMIN'), itemController.delete);
 
 module.exports = router;
 

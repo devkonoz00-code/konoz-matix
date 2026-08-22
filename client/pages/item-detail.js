@@ -40,6 +40,9 @@ export async function renderItemDetail(container, params) {
           <a href="#/scanner" class="btn btn-outline btn-sm">
             <span data-i18n="btn_scan">Scan</span>
           </a>
+          <button class="btn btn-outline btn-sm" id="btn-detail-delete-item" style="display: none; color: var(--danger); border-color: rgba(239, 68, 68, 0.4);" title="حذف المادة">
+            <span>🗑️ حذف المادة</span>
+          </button>
         </div>
       </div>
     </div>
@@ -420,6 +423,39 @@ export async function renderItemDetail(container, params) {
         }
       });
     });
+
+    // Delete Item Action (ADMIN only)
+    const currentUser = api.getCurrentUser();
+    const isAdmin = currentUser?.role === 'ADMIN';
+    const deleteBtn = document.getElementById('btn-detail-delete-item');
+    if (deleteBtn && isAdmin) {
+      deleteBtn.style.display = 'inline-flex';
+      deleteBtn.addEventListener('click', () => {
+        showModal({
+          title: '⚠️ تأكيد حذف المادة',
+          content: `
+            <p style="color: var(--text-primary); margin-bottom: 0.5rem;">
+              هل أنت متأكد من رغبتك في حذف المادة <strong>${item.name}</strong> (${item.itemCode}) من الكتالوج؟
+            </p>
+            <p style="color: var(--danger); font-size: 0.82rem; margin-bottom: 0;">
+              سيتم إلغاء تفعيل هذه المادة وحذفها من الكتالوج وعمليات البحث مع الحفاظ على سلامة سجلات الحركات التاريخية.
+            </p>
+          `,
+          confirmText: 'تأكيد وحذف المادة',
+          onConfirm: async () => {
+            try {
+              await api.delete(`/items/${itemId}`);
+              showToast(`تم حذف المادة "${item.name}" بنجاح`, 'success');
+              window.location.hash = '#/items';
+              return true;
+            } catch (err) {
+              showToast(err.message, 'error');
+              return false;
+            }
+          },
+        });
+      });
+    }
 
   } catch (err) {
     showToast(err.message, 'error');

@@ -117,6 +117,9 @@ export async function renderItems(container) {
         return;
       }
 
+      const currentUser = api.getCurrentUser();
+      const isAdmin = currentUser?.role === 'ADMIN';
+
       tbody.innerHTML = items.map(it => {
         const primaryBarcode = it.barcodes?.find(b => b.isPrimary) || it.barcodes?.[0];
         const barcodeCode = primaryBarcode ? primaryBarcode.code : it.itemCode;
@@ -144,7 +147,7 @@ export async function renderItems(container) {
             </td>
             <td style="font-weight: 700; color: var(--success);">${formatMoney(it.unitPrice)}</td>
             <td>
-              <div style="display: flex; gap: 0.35rem; align-items: center;">
+              <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                 <button class="btn btn-sm btn-outline btn-receive-row" data-id="${it._id}" data-name="${it.name}" data-price="${it.unitPrice}" data-unit="${it.unit}" title="تحديث المخزون / استلام مواد بالمستودع">
                   <span>📥 + مخزون</span>
                 </button>
@@ -154,6 +157,11 @@ export async function renderItems(container) {
                 <a href="#/items/${it._id}" class="btn btn-sm btn-outline">
                   <span data-i18n="btn_view_history">التفاصيل</span> &rarr;
                 </a>
+                ${isAdmin ? `
+                  <button class="btn btn-sm btn-outline btn-delete-item" data-id="${it._id}" data-name="${it.name}" title="حذف المادة (للأدمن فقط)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+                    <span>🗑️</span>
+                  </button>
+                ` : ''}
               </div>
             </td>
           </tr>
@@ -178,6 +186,37 @@ export async function renderItems(container) {
           const itemName = btn.getAttribute('data-name');
           const unit = btn.getAttribute('data-unit');
           openReceiveStockModal({ preselectedItemId: itemId, preselectedName: itemName, unit });
+        });
+      });
+
+      // Bind row delete buttons (Admin only)
+      tbody.querySelectorAll('.btn-delete-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const itemId = btn.getAttribute('data-id');
+          const itemName = btn.getAttribute('data-name');
+          showModal({
+            title: '⚠️ تأكيد حذف المادة',
+            content: `
+              <p style="color: var(--text-primary); margin-bottom: 0.5rem;">
+                هل أنت متأكد من رغبتك في حذف المادة <strong>${itemName}</strong> من الكتالوج؟
+              </p>
+              <p style="color: var(--danger); font-size: 0.82rem; margin-bottom: 0;">
+                سيتم إلغاء تفعيل هذه المادة وحذفها من الكتالوج وعمليات البحث مع الحفاظ على سلامة سجلات الحركات التاريخية.
+              </p>
+            `,
+            confirmText: 'تأكيد وحذف المادة',
+            onConfirm: async () => {
+              try {
+                await api.delete(`/items/${itemId}`);
+                showToast(`تم حذف المادة "${itemName}" بنجاح`, 'success');
+                loadItems();
+                return true;
+              } catch (err) {
+                showToast(err.message, 'error');
+                return false;
+              }
+            },
+          });
         });
       });
 

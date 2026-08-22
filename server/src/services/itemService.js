@@ -234,7 +234,31 @@ const itemService = {
 
     return this.getById(item._id);
   },
+
+  async delete(id, req) {
+    const item = await Item.findById(id);
+    if (!item) throw new AppError('Item not found', 404, 'NOT_FOUND');
+
+    const before = item.toJSON();
+    item.isActive = false;
+    await item.save();
+
+    // Deactivate associated barcodes
+    await Barcode.updateMany({ itemId: id }, { isActive: false });
+
+    await auditService.log({
+      userId: req.user._id,
+      action: 'DELETE',
+      entityType: 'Item',
+      entityId: item._id,
+      before,
+      req,
+    });
+
+    return { success: true, message: 'Item deleted successfully' };
+  },
 };
 
 module.exports = itemService;
+
 

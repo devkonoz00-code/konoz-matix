@@ -259,12 +259,18 @@ export async function renderItems(container) {
         <div class="form-group autocomplete-container">
           <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
             <span>اسم المادة / Item Name *</span>
-            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(اقتراحات ذكية من السجل مع فحص عدم التكرار 🟢)</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(اقتراحات فورية من السجل مع فحص عدم التكرار 🟢)</span>
           </label>
-          <input type="text" id="inp-item-name" class="form-control" placeholder="اكتب اسم المادة مثل: GRAVI, RAMLA, Ciment..." autocomplete="off" required>
+          <div class="autocomplete-input-wrapper">
+            <span class="autocomplete-icon-search">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            </span>
+            <input type="text" id="inp-item-name" class="form-control" placeholder="اكتب اسم المادة للبحث التلقائي (مثال: BRIQUE, RAMLA, CIMENT)..." autocomplete="off" spellcheck="false" required>
+            <button type="button" id="btn-clear-item-name" class="autocomplete-btn-clear" title="مسح النص">✕</button>
+          </div>
           <div id="item-name-suggestions" class="autocomplete-dropdown"></div>
-          <div id="item-duplicate-warning" style="display: none; margin-top: 0.4rem; font-size: 0.78rem; color: var(--warning); background: var(--warning-light); padding: 0.4rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid rgba(217, 119, 6, 0.3);">
-            ⚠️ <strong>تنبيه:</strong> هذه المادة مسجلة بالفعل في قاعدة البيانات (<span id="item-duplicate-code" style="font-weight: 700;"></span>). يرجى التأكد لتجنب تكرار التسجيل.
+          <div id="item-duplicate-warning" style="display: none; margin-top: 0.45rem; font-size: 0.8rem; color: var(--warning); background: var(--warning-light); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid rgba(217, 119, 6, 0.3);">
+            ⚠️ <strong>تنبيه لمنع التكرار:</strong> هذه المادة مسجلة مسبقاً في النظام برمز (<span id="item-duplicate-code" style="font-weight: 700;"></span>).
           </div>
         </div>
 
@@ -556,6 +562,7 @@ export async function renderItems(container) {
 
     // Smart Autocomplete from CSV & Database for Item Name (§13)
     const nameInput = modal.querySelector('#inp-item-name');
+    const clearBtn = modal.querySelector('#btn-clear-item-name');
     const suggestionsBox = modal.querySelector('#item-name-suggestions');
     const duplicateWarning = modal.querySelector('#item-duplicate-warning');
     const duplicateCode = modal.querySelector('#item-duplicate-code');
@@ -578,10 +585,39 @@ export async function renderItems(container) {
       return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    function updateClearButton() {
+      if (clearBtn) {
+        clearBtn.style.display = nameInput.value.trim() ? 'flex' : 'none';
+      }
+    }
+
+    function hideDropdown() {
+      if (suggestionsBox) {
+        suggestionsBox.classList.remove('active');
+        suggestionsBox.innerHTML = '';
+      }
+      selectedIndex = -1;
+    }
+
+    clearBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nameInput.value = '';
+      updateClearButton();
+      hideDropdown();
+      if (duplicateWarning) duplicateWarning.style.display = 'none';
+      nameInput.focus();
+    });
+
     async function fetchSuggestions(query) {
       if (!suggestionsBox) return;
       try {
-        suggestionsBox.innerHTML = '<div class="autocomplete-loading">جاري البحث في السجل وقاعدة البيانات...</div>';
+        suggestionsBox.innerHTML = `
+          <div class="autocomplete-loading">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+            <span>جاري البحث الذكي في السجل وقاعدة البيانات...</span>
+          </div>
+        `;
         suggestionsBox.classList.add('active');
         const res = await api.get('/items/suggestions', { q: query });
         currentSuggestions = res.data || [];
@@ -599,38 +635,55 @@ export async function renderItems(container) {
         return;
       }
 
-      const q = (query || '').trim().toLowerCase();
+      const q = (query || '').trim();
+      const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
       selectedIndex = -1;
 
-      suggestionsBox.innerHTML = list.map((item, idx) => {
+      const itemsHtml = list.map((item, idx) => {
         let displayName = escapeHtml(item.name);
-        if (q) {
-          try {
-            const regex = new RegExp(`(${escapeRegExp(q)})`, 'gi');
-            displayName = displayName.replace(regex, '<span class="autocomplete-match-highlight">$1</span>');
-          } catch {}
+        if (tokens.length > 0) {
+          tokens.forEach(tok => {
+            try {
+              const regex = new RegExp(`(${escapeRegExp(tok)})`, 'gi');
+              displayName = displayName.replace(regex, '<span class="autocomplete-match-highlight">$1</span>');
+            } catch {}
+          });
         }
 
         const badgeHtml = item.existsInDb
           ? `<span class="autocomplete-badge-exists" title="مسجل مسبقاً في قاعدة البيانات"><span class="autocomplete-dot autocomplete-dot-green"></span> مسجل مسبقاً (${escapeHtml(item.existingItem?.itemCode || 'مسجل')})</span>`
-          : `<span class="autocomplete-badge-new">مادة مقترحة من الملف</span>`;
+          : `<span class="autocomplete-badge-new">مقترح من السجل</span>`;
 
         return `
-          <div class="autocomplete-item" data-idx="${idx}">
+          <li class="autocomplete-item" data-idx="${idx}" role="option">
             <div class="autocomplete-item-name">
               ${item.existsInDb ? '<span class="autocomplete-dot autocomplete-dot-green" title="مسجل في قاعدة البيانات"></span>' : ''}
               <span>${displayName}</span>
             </div>
             <div>${badgeHtml}</div>
-          </div>
+          </li>
         `;
       }).join('');
+
+      suggestionsBox.innerHTML = `
+        <div class="autocomplete-dropdown-header">
+          <span>💡 نتائج البحث والمقترحات (${list.length})</span>
+          <span style="font-size: 0.68rem; font-weight: normal;">انقر أو اضغط Enter للاختيار</span>
+        </div>
+        <ul class="autocomplete-list" role="listbox">
+          ${itemsHtml}
+        </ul>
+        <div class="autocomplete-dropdown-footer">
+          <span><kbd>↑</kbd> <kbd>↓</kbd> للتنقل</span>
+          <span><kbd>Enter</kbd> للاختيار &nbsp; <kbd>Esc</kbd> للإغلاق</span>
+        </div>
+      `;
 
       suggestionsBox.classList.add('active');
 
       suggestionsBox.querySelectorAll('.autocomplete-item').forEach(itemEl => {
         itemEl.addEventListener('mousedown', (e) => {
-          e.preventDefault();
+          e.preventDefault(); // Prevent blur before selection
           const idx = parseInt(itemEl.dataset.idx, 10);
           selectSuggestion(currentSuggestions[idx]);
         });
@@ -640,7 +693,8 @@ export async function renderItems(container) {
     function selectSuggestion(item) {
       if (!item || !nameInput) return;
       nameInput.value = item.name;
-      if (suggestionsBox) suggestionsBox.classList.remove('active');
+      updateClearButton();
+      hideDropdown();
 
       if (item.existsInDb && item.existingItem) {
         if (duplicateWarning && duplicateCode) {
@@ -665,6 +719,8 @@ export async function renderItems(container) {
       } else {
         if (duplicateWarning) duplicateWarning.style.display = 'none';
       }
+
+      nameInput.focus();
     }
 
     function updateHighlight(items) {
@@ -679,19 +735,21 @@ export async function renderItems(container) {
     }
 
     nameInput?.addEventListener('input', () => {
+      updateClearButton();
       if (duplicateWarning) duplicateWarning.style.display = 'none';
       clearTimeout(debounceTimer);
       const val = nameInput.value.trim();
       if (!val) {
-        if (suggestionsBox) suggestionsBox.classList.remove('active');
+        hideDropdown();
         return;
       }
       debounceTimer = setTimeout(() => {
         fetchSuggestions(val);
-      }, 150);
+      }, 120);
     });
 
     nameInput?.addEventListener('focus', () => {
+      updateClearButton();
       const val = nameInput.value.trim();
       if (val) {
         fetchSuggestions(val);
@@ -699,15 +757,14 @@ export async function renderItems(container) {
     });
 
     nameInput?.addEventListener('keydown', (e) => {
-      if (!suggestionsBox || !suggestionsBox.classList.contains('active')) {
+      const items = suggestionsBox?.querySelectorAll('.autocomplete-item') || [];
+
+      if (!suggestionsBox || !suggestionsBox.classList.contains('active') || items.length === 0) {
         if (e.key === 'ArrowDown') {
           fetchSuggestions(nameInput.value.trim());
         }
         return;
       }
-
-      const items = suggestionsBox.querySelectorAll('.autocomplete-item');
-      if (items.length === 0) return;
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -722,14 +779,22 @@ export async function renderItems(container) {
           e.preventDefault();
           selectSuggestion(currentSuggestions[selectedIndex]);
         }
+      } else if (e.key === 'Tab') {
+        if (selectedIndex >= 0 && selectedIndex < currentSuggestions.length) {
+          selectSuggestion(currentSuggestions[selectedIndex]);
+        } else if (currentSuggestions.length > 0) {
+          selectSuggestion(currentSuggestions[0]);
+        }
       } else if (e.key === 'Escape') {
-        suggestionsBox.classList.remove('active');
+        e.preventDefault();
+        hideDropdown();
       }
     });
 
+    // Close dropdown on click outside
     const closeHandler = (e) => {
       if (!modal.contains(e.target) || (!nameInput.contains(e.target) && !suggestionsBox.contains(e.target))) {
-        suggestionsBox?.classList.remove('active');
+        hideDropdown();
       }
     };
     document.addEventListener('click', closeHandler);

@@ -304,7 +304,26 @@ const itemService = {
       loadCsvArticles();
     }
     const csvList = csvArticlesCache || [];
-    const q = (searchQuery || '').trim().toLowerCase();
+    const rawQuery = (searchQuery || '').trim();
+
+    // Normalization helper (supports French accents, Arabic variants, punctuation)
+    const normalize = (text) => {
+      if (!text) return '';
+      return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[يى]/g, 'ي')
+        .replace(/[^\w\s\u0600-\u06FF]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const normQuery = normalize(rawQuery);
+    const tokens = normQuery ? normQuery.split(' ').filter(t => t.length > 0) : [];
 
     // Fetch active items from DB
     const dbItems = await Item.find({ isActive: true })
@@ -314,18 +333,37 @@ const itemService = {
 
     const dbMap = new Map();
     dbItems.forEach(it => {
-      dbMap.set(it.name.trim().toLowerCase(), it);
+      dbMap.set(normalize(it.name), it);
     });
 
     const suggestions = [];
-    const addedNames = new Set();
+    const addedNormalizedNames = new Set();
 
-    // 1. Filter CSV items matching query
+    const calculateScore = (name) => {
+      if (!normQuery) return 10;
+      const normName = normalize(name);
+      if (normName === normQuery) return 1000;
+      if (normName.startsWith(normQuery)) return 800;
+
+      const words = normName.split(' ');
+      if (words.some(w => w.startsWith(normQuery))) return 600;
+      if (normName.includes(normQuery)) return 400;
+
+      if (tokens.length > 1 && tokens.every(t => normName.includes(t))) {
+        const startsEveryToken = tokens.every(t => words.some(w => w.startsWith(t)));
+        return startsEveryToken ? 350 : 250;
+      }
+      return 0;
+    };
+
+    // 1. Check CSV items
     for (const item of csvList) {
-      const lowerName = item.name.toLowerCase();
-      if (!q || lowerName.includes(q)) {
-        const existsInDb = dbMap.has(lowerName);
-        const existing = existsInDb ? dbMap.get(lowerName) : null;
+      const normName = normalize(item.name);
+      const score = calculateScore(item.name);
+
+      if (!normQuery || score > 0) {
+        const existsInDb = dbMap.has(normName);
+        const existing = existsInDb ? dbMap.get(normName) : null;
         suggestions.push({
           name: item.name,
           code: item.code || null,
@@ -340,54 +378,46 @@ const itemService = {
             categoryId: existing.categoryId?._id || existing.categoryId,
             brand: existing.brand || null,
           } : null,
+          score,
         });
-        addedNames.add(lowerName);
-        if (suggestions.length >= 60) break;
+        addedNormalizedNames.add(normName);
       }
     }
 
-    // 2. Also include DB items matching query that weren't in CSV
+    // 2. Also check DB items not in CSV
     for (const it of dbItems) {
-      const lowerName = it.name.trim().toLowerCase();
-      if ((!q || lowerName.includes(q)) && !addedNames.has(lowerName)) {
-        suggestions.push({
-          name: it.name,
-          code: it.itemCode || null,
-          existsInDb: true,
-          existingItem: {
-            _id: it._id,
-            itemCode: it.itemCode,
+      const normName = normalize(it.name);
+      if (!addedNormalizedNames.has(normName)) {
+        const score = calculateScore(it.name);
+        if (!normQuery || score > 0) {
+          suggestions.push({
             name: it.name,
-            unit: it.unit,
-            unitPrice: it.unitPrice,
-            category: it.categoryId?.name || null,
-            categoryId: it.categoryId?._id || it.categoryId,
-            brand: it.brand || null,
-          },
-        });
-        addedNames.add(lowerName);
-        if (suggestions.length >= 60) break;
+            code: it.itemCode || null,
+            existsInDb: true,
+            existingItem: {
+              _id: it._id,
+              itemCode: it.itemCode,
+              name: it.name,
+              unit: it.unit,
+              unitPrice: it.unitPrice,
+              category: it.categoryId?.name || null,
+              categoryId: it.categoryId?._id || it.categoryId,
+              brand: it.brand || null,
+            },
+            score,
+          });
+          addedNormalizedNames.add(normName);
+        }
       }
     }
 
-    // 3. Sort suggestions: exact match first, then prefix match, then includes match
-    if (q) {
-      suggestions.sort((a, b) => {
-        const aLower = a.name.toLowerCase();
-        const bLower = b.name.toLowerCase();
-        const aExact = aLower === q ? 1 : 0;
-        const bExact = bLower === q ? 1 : 0;
-        if (aExact !== bExact) return bExact - aExact;
+    // 3. Sort by Score descending, then alphabetically
+    suggestions.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.name.localeCompare(b.name);
+    });
 
-        const aStarts = aLower.startsWith(q) ? 1 : 0;
-        const bStarts = bLower.startsWith(q) ? 1 : 0;
-        if (aStarts !== bStarts) return bStarts - aStarts;
-
-        return aLower.localeCompare(bLower);
-      });
-    }
-
-    return suggestions.slice(0, 30);
+    return suggestions.slice(0, 30).map(({ score, ...rest }) => rest);
   },
 };
 

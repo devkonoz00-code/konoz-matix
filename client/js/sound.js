@@ -1,18 +1,26 @@
 /**
  * MATIX Sound Effects Engine (Web Audio API)
- * Provides zero-dependency, lightweight synthesized audio feedback:
- * 1. Success Chime (3-note pleasant upward arpeggio for completed operations)
- * 2. Confirm Beep (Fast modern dual-tone blip for instant confirmations/scans)
- * 3. Error Alert (Distinct low-frequency warning tone for errors and rejections)
+ * Enhanced High-Volume, Zero-Latency Synthesized Audio Feedback
+ * Includes Dynamics Compressor for maximum loudness without distortion.
  */
 
 let audioCtx = null;
+let masterCompressor = null;
 
 function getAudioContext() {
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
+      
+      // Master Compressor for maximum punch and loudness without digital clipping
+      masterCompressor = audioCtx.createDynamicsCompressor();
+      masterCompressor.threshold.setValueAtTime(-6, audioCtx.currentTime);
+      masterCompressor.knee.setValueAtTime(12, audioCtx.currentTime);
+      masterCompressor.ratio.setValueAtTime(4, audioCtx.currentTime);
+      masterCompressor.attack.setValueAtTime(0.003, audioCtx.currentTime);
+      masterCompressor.release.setValueAtTime(0.15, audioCtx.currentTime);
+      masterCompressor.connect(audioCtx.destination);
     }
   }
   if (audioCtx && audioCtx.state === 'suspended') {
@@ -24,40 +32,60 @@ function getAudioContext() {
 // Unlock audio on first user touch / click
 ['click', 'touchstart', 'keydown'].forEach(event => {
   window.addEventListener(event, () => {
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
     }
   }, { once: true, passive: true });
 });
 
 /**
- * 1. Success Chime — Uplifting 3-note harmonic arpeggio (C5 -> E5 -> G5)
- * Used when operations complete successfully (e.g. item created, stock received, transfer completed).
+ * 1. Success Chime — Loud, bright 3-note harmonic arpeggio (C5 -> E5 -> G5 -> C6)
+ * Used when operations complete successfully.
  */
 export function playSuccessChime() {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+    const notes = [
+      { freq: 523.25, time: 0.00, dur: 0.28 }, // C5
+      { freq: 659.25, time: 0.08, dur: 0.28 }, // E5
+      { freq: 783.99, time: 0.16, dur: 0.35 }, // G5
+      { freq: 1046.50, time: 0.24, dur: 0.40 }, // C6 (High sparkle)
+    ];
+
     const startTime = ctx.currentTime;
 
-    notes.forEach((freq, index) => {
+    notes.forEach(note => {
       const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, startTime + index * 0.07);
+      // Fundamental sine + soft triangle for warmth and loudness
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(note.freq, startTime + note.time);
 
-      gain.gain.setValueAtTime(0.001, startTime + index * 0.07);
-      gain.gain.exponentialRampToValueAtTime(0.18, startTime + index * 0.07 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + index * 0.07 + 0.22);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(note.freq, startTime + note.time);
+
+      gain.gain.setValueAtTime(0.001, startTime + note.time);
+      gain.gain.exponentialRampToValueAtTime(0.65, startTime + note.time + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + note.time + note.dur);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      osc2.connect(gain);
 
-      osc.start(startTime + index * 0.07);
-      osc.stop(startTime + index * 0.07 + 0.25);
+      if (masterCompressor) {
+        gain.connect(masterCompressor);
+      } else {
+        gain.connect(ctx.destination);
+      }
+
+      osc.start(startTime + note.time);
+      osc2.start(startTime + note.time);
+      osc.stop(startTime + note.time + note.dur + 0.05);
+      osc2.stop(startTime + note.time + note.dur + 0.05);
     });
   } catch (err) {
     console.debug('Audio playback error:', err);
@@ -65,7 +93,7 @@ export function playSuccessChime() {
 }
 
 /**
- * 2. Confirm Beep — Fast modern dual-tone pop (D5 -> A5)
+ * 2. Confirm Beep — Loud, crisp dual-tone pop (D5 -> A5)
  * Used on action button clicks, modal confirmations, and barcode scanner hits.
  */
 export function playConfirmBeep() {
@@ -75,30 +103,41 @@ export function playConfirmBeep() {
 
     const startTime = ctx.currentTime;
 
-    // Primary tone
     const osc = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(587.33, startTime); // D5
-    osc.frequency.exponentialRampToValueAtTime(880.00, startTime + 0.08); // A5
+    osc.frequency.setValueAtTime(659.25, startTime); // E5
+    osc.frequency.exponentialRampToValueAtTime(1046.50, startTime + 0.08); // C6
+
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1318.51, startTime); // E6 harmonic
 
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.16);
+    gain.gain.exponentialRampToValueAtTime(0.70, startTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.20);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc2.connect(gain);
+
+    if (masterCompressor) {
+      gain.connect(masterCompressor);
+    } else {
+      gain.connect(ctx.destination);
+    }
 
     osc.start(startTime);
-    osc.stop(startTime + 0.18);
+    osc2.start(startTime);
+    osc.stop(startTime + 0.22);
+    osc2.stop(startTime + 0.22);
   } catch (err) {
     console.debug('Audio playback error:', err);
   }
 }
 
 /**
- * 3. Error Alert — Low dual-pulse warning tone (220 Hz -> 174.61 Hz)
+ * 3. Error Alert — Loud, punchy dual-pulse warning buzz (240 Hz -> 180 Hz)
  * Used when an error, validation failure, or rejection occurs.
  */
 export function playErrorTone() {
@@ -108,26 +147,38 @@ export function playErrorTone() {
 
     const startTime = ctx.currentTime;
     const pulses = [
-      { freq: 220.00, offset: 0 },    // A3
-      { freq: 174.61, offset: 0.11 }, // F3
+      { freq: 240.00, offset: 0.00 },
+      { freq: 180.00, offset: 0.12 },
     ];
 
     pulses.forEach(pulse => {
       const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(pulse.freq, startTime + pulse.offset);
 
+      osc2.type = 'square';
+      osc2.frequency.setValueAtTime(pulse.freq * 0.5, startTime + pulse.offset); // Sub-bass punch
+
       gain.gain.setValueAtTime(0.001, startTime + pulse.offset);
-      gain.gain.exponentialRampToValueAtTime(0.16, startTime + pulse.offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + pulse.offset + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.65, startTime + pulse.offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + pulse.offset + 0.14);
 
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      osc2.connect(gain);
+
+      if (masterCompressor) {
+        gain.connect(masterCompressor);
+      } else {
+        gain.connect(ctx.destination);
+      }
 
       osc.start(startTime + pulse.offset);
-      osc.stop(startTime + pulse.offset + 0.14);
+      osc2.start(startTime + pulse.offset);
+      osc.stop(startTime + pulse.offset + 0.16);
+      osc2.stop(startTime + pulse.offset + 0.16);
     });
   } catch (err) {
     console.debug('Audio playback error:', err);

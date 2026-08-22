@@ -20,6 +20,7 @@ const imageUpload = multer({
 router.use(auth);
 router.get('/', itemController.list);
 router.get('/labels', itemController.getLabels);
+router.get('/suggestions', itemController.getSuggestions);
 router.post('/upload-image', authorize('ADMIN', 'WAREHOUSE_MANAGER'), imageUpload.single('file'), itemController.uploadImage);
 router.get('/:id', itemController.getById);
 router.get('/:id/history', itemController.getHistory);

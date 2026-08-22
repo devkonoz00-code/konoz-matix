@@ -256,9 +256,16 @@ export async function renderItems(container) {
 
     const content = `
       <form id="form-new-item">
-        <div class="form-group">
-          <label class="form-label">اسم المادة / Item Name *</label>
-          <input type="text" id="inp-item-name" class="form-control" placeholder="E.g. أسمنت بورتلاندي 50 كغ / Hydraulic Breaker" required>
+        <div class="form-group autocomplete-container">
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span>اسم المادة / Item Name *</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(اقتراحات ذكية من السجل مع فحص عدم التكرار 🟢)</span>
+          </label>
+          <input type="text" id="inp-item-name" class="form-control" placeholder="اكتب اسم المادة مثل: GRAVI, RAMLA, Ciment..." autocomplete="off" required>
+          <div id="item-name-suggestions" class="autocomplete-dropdown"></div>
+          <div id="item-duplicate-warning" style="display: none; margin-top: 0.4rem; font-size: 0.78rem; color: var(--warning); background: var(--warning-light); padding: 0.4rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid rgba(217, 119, 6, 0.3);">
+            ⚠️ <strong>تنبيه:</strong> هذه المادة مسجلة بالفعل في قاعدة البيانات (<span id="item-duplicate-code" style="font-weight: 700;"></span>). يرجى التأكد لتجنب تكرار التسجيل.
+          </div>
         </div>
 
         <div class="form-row">
@@ -546,6 +553,186 @@ export async function renderItems(container) {
       const hiddenUrl = modal.querySelector('#inp-item-image-url');
       if (hiddenUrl) hiddenUrl.value = '';
     });
+
+    // Smart Autocomplete from CSV & Database for Item Name (§13)
+    const nameInput = modal.querySelector('#inp-item-name');
+    const suggestionsBox = modal.querySelector('#item-name-suggestions');
+    const duplicateWarning = modal.querySelector('#item-duplicate-warning');
+    const duplicateCode = modal.querySelector('#item-duplicate-code');
+
+    let debounceTimer = null;
+    let selectedIndex = -1;
+    let currentSuggestions = [];
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function escapeRegExp(str) {
+      return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    async function fetchSuggestions(query) {
+      if (!suggestionsBox) return;
+      try {
+        suggestionsBox.innerHTML = '<div class="autocomplete-loading">جاري البحث في السجل وقاعدة البيانات...</div>';
+        suggestionsBox.classList.add('active');
+        const res = await api.get('/items/suggestions', { q: query });
+        currentSuggestions = res.data || [];
+        renderSuggestions(currentSuggestions, query);
+      } catch (err) {
+        suggestionsBox.innerHTML = '<div class="autocomplete-empty">تعذر جلب الاقتراحات</div>';
+      }
+    }
+
+    function renderSuggestions(list, query) {
+      if (!suggestionsBox) return;
+      if (!list || list.length === 0) {
+        suggestionsBox.innerHTML = '<div class="autocomplete-empty">لا توجد أسماء مطابقة في الملف أو قاعدة البيانات</div>';
+        suggestionsBox.classList.add('active');
+        return;
+      }
+
+      const q = (query || '').trim().toLowerCase();
+      selectedIndex = -1;
+
+      suggestionsBox.innerHTML = list.map((item, idx) => {
+        let displayName = escapeHtml(item.name);
+        if (q) {
+          try {
+            const regex = new RegExp(`(${escapeRegExp(q)})`, 'gi');
+            displayName = displayName.replace(regex, '<span class="autocomplete-match-highlight">$1</span>');
+          } catch {}
+        }
+
+        const badgeHtml = item.existsInDb
+          ? `<span class="autocomplete-badge-exists" title="مسجل مسبقاً في قاعدة البيانات"><span class="autocomplete-dot autocomplete-dot-green"></span> مسجل مسبقاً (${escapeHtml(item.existingItem?.itemCode || 'مسجل')})</span>`
+          : `<span class="autocomplete-badge-new">مادة مقترحة من الملف</span>`;
+
+        return `
+          <div class="autocomplete-item" data-idx="${idx}">
+            <div class="autocomplete-item-name">
+              ${item.existsInDb ? '<span class="autocomplete-dot autocomplete-dot-green" title="مسجل في قاعدة البيانات"></span>' : ''}
+              <span>${displayName}</span>
+            </div>
+            <div>${badgeHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      suggestionsBox.classList.add('active');
+
+      suggestionsBox.querySelectorAll('.autocomplete-item').forEach(itemEl => {
+        itemEl.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const idx = parseInt(itemEl.dataset.idx, 10);
+          selectSuggestion(currentSuggestions[idx]);
+        });
+      });
+    }
+
+    function selectSuggestion(item) {
+      if (!item || !nameInput) return;
+      nameInput.value = item.name;
+      if (suggestionsBox) suggestionsBox.classList.remove('active');
+
+      if (item.existsInDb && item.existingItem) {
+        if (duplicateWarning && duplicateCode) {
+          duplicateWarning.style.display = 'block';
+          duplicateCode.textContent = `${item.existingItem.itemCode || ''} ${item.existingItem.category ? '— ' + item.existingItem.category : ''}`;
+        }
+        if (item.existingItem.categoryId) {
+          const catSelect = modal.querySelector('#inp-item-cat');
+          if (catSelect && catSelect.querySelector(`option[value="${item.existingItem.categoryId}"]`)) {
+            catSelect.value = item.existingItem.categoryId;
+          }
+        }
+        if (item.existingItem.unit) {
+          const unitSelect = modal.querySelector('#inp-item-unit');
+          if (unitSelect && unitSelect.querySelector(`option[value="${item.existingItem.unit}"]`)) {
+            unitSelect.value = item.existingItem.unit;
+          }
+        }
+        if (item.existingItem.unitPrice && !modal.querySelector('#inp-item-unit-price').value) {
+          modal.querySelector('#inp-item-unit-price').value = item.existingItem.unitPrice;
+        }
+      } else {
+        if (duplicateWarning) duplicateWarning.style.display = 'none';
+      }
+    }
+
+    function updateHighlight(items) {
+      items.forEach((it, idx) => {
+        if (idx === selectedIndex) {
+          it.classList.add('selected');
+          it.scrollIntoView({ block: 'nearest' });
+        } else {
+          it.classList.remove('selected');
+        }
+      });
+    }
+
+    nameInput?.addEventListener('input', () => {
+      if (duplicateWarning) duplicateWarning.style.display = 'none';
+      clearTimeout(debounceTimer);
+      const val = nameInput.value.trim();
+      if (!val) {
+        if (suggestionsBox) suggestionsBox.classList.remove('active');
+        return;
+      }
+      debounceTimer = setTimeout(() => {
+        fetchSuggestions(val);
+      }, 150);
+    });
+
+    nameInput?.addEventListener('focus', () => {
+      const val = nameInput.value.trim();
+      if (val) {
+        fetchSuggestions(val);
+      }
+    });
+
+    nameInput?.addEventListener('keydown', (e) => {
+      if (!suggestionsBox || !suggestionsBox.classList.contains('active')) {
+        if (e.key === 'ArrowDown') {
+          fetchSuggestions(nameInput.value.trim());
+        }
+        return;
+      }
+
+      const items = suggestionsBox.querySelectorAll('.autocomplete-item');
+      if (items.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex + 1) % items.length;
+        updateHighlight(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+        updateHighlight(items);
+      } else if (e.key === 'Enter') {
+        if (selectedIndex >= 0 && selectedIndex < currentSuggestions.length) {
+          e.preventDefault();
+          selectSuggestion(currentSuggestions[selectedIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        suggestionsBox.classList.remove('active');
+      }
+    });
+
+    const closeHandler = (e) => {
+      if (!modal.contains(e.target) || (!nameInput.contains(e.target) && !suggestionsBox.contains(e.target))) {
+        suggestionsBox?.classList.remove('active');
+      }
+    };
+    document.addEventListener('click', closeHandler);
   });
 
   // Receive / Update Stock Modal

@@ -57,6 +57,16 @@ const itemController = {
     }
   },
 
+  async getSuggestions(req, res, next) {
+    try {
+      const query = req.query.q || req.query.search || req.query.name || '';
+      const suggestions = await itemService.getArticleSuggestions(query);
+      res.json({ success: true, data: suggestions });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async getById(req, res, next) {
     try {
       const item = await itemService.getById(req.params.id);

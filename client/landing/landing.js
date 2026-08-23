@@ -1,10 +1,10 @@
 /**
  * MATIX Standalone Marketing Landing Page Script
- * Pure Vanilla JS — Zero dependencies, ultra fast.
+ * Pure Vanilla JS — Ultra-fast, Zero external libraries.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Mobile Menu Toggle
+  // 1. Mobile Drawer Toggle
   const mobileToggle = document.getElementById('mobile-menu-btn');
   const closeDrawerBtn = document.getElementById('close-drawer-btn');
   const mobileDrawer = document.getElementById('mobile-nav-drawer');
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     link.addEventListener('click', closeDrawer);
   });
 
-  // 2. Smooth Scroll Anchor Links
+  // 2. Smooth Scroll for Anchor Links
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
       const targetId = this.getAttribute('href');
@@ -51,20 +51,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Header Shadow on Scroll
+  // 3. Header Shadow Dynamic Effect on Scroll
   const siteHeader = document.querySelector('.site-header');
   window.addEventListener('scroll', () => {
     if (window.scrollY > 20) {
-      siteHeader.style.boxShadow = '0 4px 20px -2px rgba(0, 0, 0, 0.08)';
+      siteHeader.style.boxShadow = '0 8px 24px -4px rgba(15, 23, 42, 0.08)';
     } else {
       siteHeader.style.boxShadow = 'none';
     }
   });
 
-  // 4. Contact & Demo Request Form Handling
+  // 4. Contact Form Handling
   const contactForm = document.getElementById('inquiry-form');
   const formAlert = document.getElementById('form-alert');
-  const whatsappDirectBtn = document.getElementById('btn-whatsapp-direct');
 
   if (contactForm) {
     contactForm.addEventListener('submit', (e) => {
@@ -73,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const fullName = document.getElementById('input-name').value.trim();
       const company = document.getElementById('input-company').value.trim();
       const phone = document.getElementById('input-phone').value.trim();
-      const email = document.getElementById('input-email').value.trim();
       const projects = document.getElementById('input-projects').value;
       const message = document.getElementById('input-message').value.trim();
 
@@ -82,13 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Show Success Message
+      // Show Success Toast
       if (formAlert) {
-        formAlert.className = 'form-alert-box success';
+        formAlert.className = 'toast-alert-box success';
         formAlert.innerHTML = `
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           <div>
-            <strong>شكراً لك ${fullName}!</strong> تم استلام طلبك بنجاح. سيتواصل معك أحد مستشارينا الميدانيين خلال 24 ساعة لترتيب العرض التوضيحي.
+            <strong>شكراً لك ${fullName}!</strong> تم استلام طلبك بنجاح. سيتواصل معك أحد مستشارينا الميدانيين قريباً لترتيب العرض التوضيحي.
           </div>
         `;
         formAlert.style.display = 'flex';
@@ -102,13 +100,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 5. Direct WhatsApp formatting with prefilled message
-  if (whatsappDirectBtn) {
-    whatsappDirectBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const phoneNum = '213555000000'; // Default business contact number
-      const defaultText = encodeURIComponent('مرحباً فريق ماتيكس، أرغب في معرفة المزيد عن منصة تتبع المشاريع والمستودعات MATIX وطلب عرض تجريبي لمؤسستنا.');
-      window.open(`https://wa.me/${phoneNum}?text=${defaultText}`, '_blank');
-    });
-  }
+  // 5. Direct WhatsApp Triggers (Uses 0000000000 as configured placeholder)
+  const whatsappTriggers = [
+    document.getElementById('btn-whatsapp-direct'),
+    document.getElementById('btn-dock-whatsapp')
+  ];
+
+  whatsappTriggers.forEach(btn => {
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const phoneNum = '0000'; // Placeholder zeros as requested
+        const defaultText = encodeURIComponent('مرحباً فريق ماتيكس (MATIX)، أرغب في طلب عرض تجريبي لمنظومة تتبع مواد ومصاريف المشاريع الإنشائية.');
+        window.open(`https://wa.me/${phoneNum}?text=${defaultText}`, '_blank');
+      });
+    }
+  });
 });

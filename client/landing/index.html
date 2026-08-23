@@ -83,7 +83,7 @@
 
   <main>
     <!-- ========================================================================
-         Hero Section — The Problem, Stated Sharply
+         Hero Section — The Problem, Stated Sharply with Rich Photography
          ======================================================================== -->
     <section class="hero-section">
       <div class="container hero-grid">
@@ -123,83 +123,56 @@
           <div class="hero-trust-row">
             <div class="trust-item">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>مبني خصيصاً للميدان والمستودعات</span>
+              <span>مبني للميدان والمستودعات</span>
             </div>
             <div class="trust-item">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>حسابات دقيقة بالدينار الجزائري (DZD)</span>
+              <span>حسابات دقيقة بالدينار (DZD)</span>
             </div>
             <div class="trust-item">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>تتبع سريع عبر الباركود و QR</span>
+              <span>تتبع بالباركود و QR</span>
             </div>
           </div>
         </div>
 
-        <!-- Hero Visual Preview Frame -->
+        <!-- Hero Visual: Rich Photography + Live Glassmorphism Dashboard -->
         <div class="hero-visual">
-          <div class="hero-preview-frame">
-            <div class="frame-header">
-              <div class="frame-project">
-                <div class="project-status-dot"></div>
+          <div class="hero-image-backdrop">
+            <img src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=1200" alt="مهندس معماري يشرف على مشروع بناء حديث">
+            
+            <div class="hero-glass-overlay">
+              <div class="overlay-project-header">
                 <div>
-                  <div class="project-title">مشروع إقامة الأوراس — الجزائر العاصمة</div>
-                  <div class="project-sub">حالة الورشة: قيد الإنجاز • المشرف الميداني: كمال ب.</div>
+                  <div class="overlay-project-name">مشروع إقامة الأوراس — الجزائر العاصمة</div>
+                  <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 2px;">المشرف الميداني: كمال ب. • حالة الورشة: نشطة</div>
                 </div>
+                <span class="pill-badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); font-size: 0.76rem; padding: 0.25rem 0.65rem;">
+                  <span class="live-beacon"></span> مباشر الآن
+                </span>
               </div>
-              <span class="pill-badge" style="font-size: 0.78rem; padding: 0.25rem 0.7rem;">مباشر الآن</span>
-            </div>
 
-            <div class="frame-stats-grid">
-              <div class="stat-card primary-stat">
-                <div class="stat-label">المستهلك الفعلي بالمشروع</div>
-                <div class="stat-value">14,850,000 <span class="stat-currency">د.ج</span></div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">المواد المحجوزة بالموقع حالياً</div>
-                <div class="stat-value">3,420,000 <span class="stat-currency">د.ج</span></div>
-              </div>
-            </div>
-
-            <div class="frame-feed">
-              <div class="feed-header">سجل الحركات والتحويلات الميدانية</div>
-              <div class="feed-items">
-                <div class="feed-row">
-                  <div>
-                    <div class="feed-name">إسمنت بورتلاندي 42.5 (300 كيس)</div>
-                    <div class="feed-desc">تحويل من المستودع المركزي • Barcode #MAT-8841</div>
-                  </div>
-                  <span class="feed-badge">تم الاستلام والمصادقة</span>
+              <div class="overlay-metrics-grid">
+                <div class="overlay-metric">
+                  <div class="overlay-metric-label">إجمالي المستهلك الفعلي</div>
+                  <div class="overlay-metric-val">14,850,000 <span class="overlay-currency">د.ج</span></div>
                 </div>
-                <div class="feed-row">
-                  <div>
-                    <div class="feed-name">حديد تسليح 12 مم (4.5 طن)</div>
-                    <div class="feed-desc">تسليم مباشر للموقع • سند رقم BON-2026-092</div>
-                  </div>
-                  <span class="feed-badge">موثق ومقيد مالياً</span>
+                <div class="overlay-metric">
+                  <div class="overlay-metric-label">المواد المحجوزة بالموقع</div>
+                  <div class="overlay-metric-val">3,420,000 <span class="overlay-currency">د.ج</span></div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Floating Badges -->
-          <div class="floating-pill floating-pill-bottom">
-            <div class="pill-dot">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <!-- Floating Badge -->
+          <div class="floating-hero-pill">
+            <div class="pill-glow-dot">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
             </div>
             <div>
-              <div class="pill-content-title">ضبط التكاليف لحظياً</div>
-              <div class="pill-content-sub">صفر هدر في الميزانيات</div>
-            </div>
-          </div>
-
-          <div class="floating-pill floating-pill-top">
-            <div class="pill-dot gold">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </div>
-            <div>
-              <div class="pill-content-title">سجل تدقيق شامل</div>
-              <div class="pill-content-sub" style="color: var(--text-subtle);">معرفة الفاعل والتوقيت بدقة</div>
+              <div style="font-size: 0.84rem; font-weight: 800; color: var(--text-main);">سجل تدقيق غير قابل للتلاعب</div>
+              <div style="font-size: 0.72rem; color: var(--text-subtle);">كل حركة موثقة بالاسم والوقت</div>
             </div>
           </div>
         </div>
@@ -207,12 +180,12 @@
     </section>
 
     <!-- ========================================================================
-         Problem Section (3 Clean Chaos Points)
+         Problem Section — 3 Photo-Rich Cards
          ======================================================================== -->
     <section class="problem-section" id="problem">
       <div class="container">
         <div class="section-header">
-          <span class="pill-badge" style="background: var(--danger-subtle); color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">واقع قطاع المقاولات اليوم</span>
+          <span class="pill-badge" style="background: var(--danger-subtle); color: var(--danger); border-color: rgba(239, 68, 68, 0.25);">واقع قطاع المقاولات اليوم</span>
           <h2>ثلاث أزمات متزامنة تستنزف أرباح شركات المقاولات</h2>
           <p>
             تعتمد معظم الشركات على دفاتر ورقية ومجموعات دردشة غير رسمية، مما يؤدي إلى تراكم خسائر غير مرئية في كل مشروع يُنفذ.
@@ -221,44 +194,53 @@
 
         <div class="problem-grid">
           <!-- Problem 1 -->
-          <div class="problem-card">
-            <div class="problem-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <div class="problem-card-rich">
+            <div class="problem-card-media">
+              <img src="https://images.unsplash.com/photo-1590486803833-1c5dc8ddd4c8?auto=format&fit=crop&q=80&w=800" alt="مواد بناء ومصاريف غير مضبوطة">
+              <span class="problem-card-badge">الأزمة المالية</span>
             </div>
-            <h3>1. الفوضى المالية وضبابية التكاليف</h3>
-            <p>
-              غياب الرؤية اللحظية للمصروفات الفعلية لكل مشروع على حدة. لا تكتشف الإدارة تجاوز الميزانيات المقدرة إلا في نهاية المشروع أو بعد فوات الأوان.
-            </p>
-            <div class="problem-quote-pill">
-              "كم كلفنا هذا المشروع حتى اليوم تحديداً؟ لا أحد يملك الإجابة الفورية."
+            <div class="problem-card-body">
+              <h3>1. الفوضى المالية وضبابية التكاليف</h3>
+              <p>
+                غياب الرؤية اللحظية للمصروفات الفعلية لكل مشروع على حدة. لا تكتشف الإدارة تجاوز الميزانيات المقدرة إلا في نهاية المشروع أو بعد فوات الأوان.
+              </p>
+              <div class="problem-quote-tag">
+                "كم كلفنا هذا المشروع حتى اليوم تحديداً؟ لا أحد يملك الإجابة الفورية."
+              </div>
             </div>
           </div>
 
           <!-- Problem 2 -->
-          <div class="problem-card">
-            <div class="problem-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          <div class="problem-card-rich">
+            <div class="problem-card-media">
+              <img src="https://images.unsplash.com/photo-1531834685032-c34bf0d84c77?auto=format&fit=crop&q=80&w=800" alt="مشرفو مواقع ورسائل واتساب مشتتة">
+              <span class="problem-card-badge">أزمة الورشات</span>
             </div>
-            <h3>2. فوضى الورشات وتتبع الواتساب</h3>
-            <p>
-              طلبات مواد عاجلة، تحويلات بين الورشات، وموافقات شفهية تضيع في مجموعات واتساب متفرقة دون سجل رسمي أو مسؤولية واضحة لمن طلب أو استلم.
-            </p>
-            <div class="problem-quote-pill">
-              "أرسلت طلبي على الواتساب منذ أيام ولم أستلم المواد حتى الآن!"
+            <div class="problem-card-body">
+              <h3>2. فوضى الورشات وتتبع الواتساب</h3>
+              <p>
+                طلبات مواد عاجلة، تحويلات بين الورشات، وموافقات شفهية تضيع في مجموعات واتساب متفرقة دون سجل رسمي أو مسؤولية واضحة لمن طلب أو استلم.
+              </p>
+              <div class="problem-quote-tag">
+                "أرسلت طلبي على الواتساب منذ أيام ولم أستلم المواد حتى الآن!"
+              </div>
             </div>
           </div>
 
           <!-- Problem 3 -->
-          <div class="problem-card">
-            <div class="problem-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <div class="problem-card-rich">
+            <div class="problem-card-media">
+              <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800" alt="مستودع مقاولات غير منظم">
+              <span class="problem-card-badge">أزمة المستودعات</span>
             </div>
-            <h3>3. فوضى المخزون والمستودعات</h3>
-            <p>
-              صعوبة الجزم بما هو موجود فعلياً داخل كل مستودع مقابل ما تم نقله للمشاريع، مما يتسبب في شراء مواد مكررة أو تعطل العمال بسبب نفاذ مادة فجأة.
-            </p>
-            <div class="problem-quote-pill">
-              "اشترينا كابلات جديدة واكتشفنا وجود لفات منسية في ورشة أخرى!"
+            <div class="problem-card-body">
+              <h3>3. فوضى المخزون والمستودعات</h3>
+              <p>
+                صعوبة الجزم بما هو موجود فعلياً داخل كل مستودع مقابل ما تم نقله للمشاريع، مما يتسبب في شراء مواد مكررة أو تعطل العمال بسبب نفاذ مادة فجأة.
+              </p>
+              <div class="problem-quote-tag">
+                "اشترينا كابلات جديدة واكتشفنا وجود لفات منسية في ورشة أخرى!"
+              </div>
             </div>
           </div>
         </div>
@@ -271,28 +253,30 @@
     <section class="solution-section" id="solution">
       <div class="container solution-grid">
         <div class="solution-content">
-          <span class="pill-badge dark">الحل السحابي الميداني</span>
+          <span class="pill-badge dark">
+            <span class="live-beacon"></span> الحل السحابي الميداني
+          </span>
           <h2>نظام ماتيكس (Matix): الجسر الرقمي المباشر بين المستودع ومواقع العمل</h2>
           <p>
             ماتيكس منصة ميدانية متكاملة أُنشئت خصيصاً لسد الفجوة بين الإدارة المركزية، مسؤولي المستودعات، والمشرفين على أرض الواقع. نظام موحد يربط حركة المواد بأثرها المالي فورياً.
           </p>
 
           <div class="solution-pillars">
-            <div class="solution-pillar">
-              <div class="pillar-badge-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <div class="solution-pillar-item">
+              <div class="pillar-icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
               </div>
-              <div class="pillar-info">
+              <div class="pillar-text">
                 <h4>توحيد دورة حياة المادة بالكامل</h4>
                 <p>من لحظة الشراء والدخول للمستودع حتى الاستلام في الورشة والاستهلاك النهائي.</p>
               </div>
             </div>
 
-            <div class="solution-pillar">
-              <div class="pillar-badge-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <div class="solution-pillar-item">
+              <div class="pillar-icon-box">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
               </div>
-              <div class="pillar-info">
+              <div class="pillar-text">
                 <h4>سجل تدقيق وحسابات لا تقبل الشك</h4>
                 <p>كل مادة موثقة بباركود وتوقيع إلكتروني ومسؤول محدد بالاسم والتاريخ.</p>
               </div>
@@ -300,27 +284,27 @@
           </div>
         </div>
 
-        <!-- Architecture Graphic -->
-        <div class="solution-visual-card">
-          <div class="hub-center">
+        <!-- Architecture Box -->
+        <div class="solution-architecture-box">
+          <div class="arch-hub">
             <h4>منظومة MATIX المركزية</h4>
             <p>المحرك السحابي الموحد لإدارة الموارد والمشاريع</p>
           </div>
 
-          <div class="hub-connectors">
-            <div class="connector-card">
+          <div class="arch-grid">
+            <div class="arch-node">
               <h5>المستودعات المركزية</h5>
               <span>جرد بالباركود وتوثيق الصادر والوارد</span>
             </div>
-            <div class="connector-card">
+            <div class="arch-node">
               <h5>مواقع وورشات العمل</h5>
               <span>طلبات رقمية ومصادقة الاستلام</span>
             </div>
-            <div class="connector-card">
+            <div class="arch-node">
               <h5>الإدارة والمحاسبة</h5>
               <span>لوحات تحكم بالتكاليف بالدينار DZD</span>
             </div>
-            <div class="connector-card">
+            <div class="arch-node">
               <h5>الفرق الميدانية</h5>
               <span>تطبيق هاتف خفيف وسريع بالموقع</span>
             </div>
@@ -330,7 +314,7 @@
     </section>
 
     <!-- ========================================================================
-         Detailed Feature Showcases
+         Detailed Feature Showcases (Rich Photos + Live Interactive Modules)
          ======================================================================== -->
     <section class="features-section" id="features">
       <div class="container">
@@ -343,14 +327,14 @@
         </div>
 
         <!-- Feature 1: Financial Management -->
-        <div class="feature-row">
-          <div class="feature-content">
+        <div class="feature-showcase-row">
+          <div class="feature-text-block">
             <span class="pill-badge">الرقابة المالية المتقدمة</span>
             <h3>الإدارة المالية للمشاريع وحساب التكاليف بالدينار (DZD)</h3>
             <p>
               احصل على رؤية فورية دقيقة لما ينفقه كل مشروع دون انتظار إقفال الحسابات. يمنحك ماتيكس فصلاً حسابياً ذكياً بين المواد التي تم استهلاكها بالفعل في البناء، والمواد المحجوزة في موقع الورشة والتي لم تُستهلك بعد.
             </p>
-            <ul class="feature-bullets">
+            <ul class="feature-bullets-list">
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span>متابعة فورية للمصروفات مقارنة بالميزانية التقديرية لكل مشروع.</span>
@@ -361,7 +345,7 @@
               </li>
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                <span>طباعة سندات استلام وتسليم رسمية (Bons de Livraison) مزودة برموز QR قابلة للتأكد.</span>
+                <span>طباعة سندات استلام وتسليم رسمية (Bons de Livraison) مزودة برموز QR.</span>
               </li>
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -370,12 +354,12 @@
             </ul>
           </div>
 
-          <div class="feature-graphic-card">
-            <div class="graphic-card-header">
-              <div class="graphic-card-title">الميزانية وتدفق تكاليف المواد — مشروع برج المرجان</div>
-              <span class="pill-badge" style="font-size: 0.76rem; padding: 0.2rem 0.6rem;">تحديث فوري</span>
+          <div class="feature-ui-module">
+            <div class="ui-module-header">
+              <div class="ui-module-title">الميزانية وتدفق تكاليف المواد — مشروع برج المرجان</div>
+              <span class="pill-badge" style="font-size: 0.76rem; padding: 0.25rem 0.65rem;">تحديث فوري</span>
             </div>
-            <table class="graphic-table">
+            <table class="ui-live-table">
               <thead>
                 <tr>
                   <th>المادة / الصنف</th>
@@ -388,25 +372,25 @@
                 <tr>
                   <td><strong>خرسانة جاهزة B25</strong></td>
                   <td>120 م³</td>
-                  <td><span class="tag-badge consumed">مستهلكة بالكامل</span></td>
+                  <td><span class="status-tag consumed">مستهلكة بالكامل</span></td>
                   <td><strong>1,440,000 د.ج</strong></td>
                 </tr>
                 <tr>
                   <td><strong>آجر بناء 12 ثقب</strong></td>
                   <td>8,000 حبة</td>
-                  <td><span class="tag-badge holding">محجوزة بالموقع</span></td>
+                  <td><span class="status-tag holding">محجوزة بالموقع</span></td>
                   <td><strong>360,000 د.ج</strong></td>
                 </tr>
                 <tr>
                   <td><strong>أنابيب كهربائية 20مم</strong></td>
                   <td>45 لفة</td>
-                  <td><span class="tag-badge holding">محجوزة بالموقع</span></td>
+                  <td><span class="status-tag holding">محجوزة بالموقع</span></td>
                   <td><strong>112,500 د.ج</strong></td>
                 </tr>
                 <tr>
                   <td><strong>طلاء أساس مائي</strong></td>
                   <td>30 دلو</td>
-                  <td><span class="tag-badge consumed">مستهلكة بالكامل</span></td>
+                  <td><span class="status-tag consumed">مستهلكة بالكامل</span></td>
                   <td><strong>195,000 د.ج</strong></td>
                 </tr>
               </tbody>
@@ -415,14 +399,14 @@
         </div>
 
         <!-- Feature 2: Project Tracking -->
-        <div class="feature-row reversed">
-          <div class="feature-content">
+        <div class="feature-showcase-row reversed">
+          <div class="feature-text-block">
             <span class="pill-badge">لوحة التحكم والمتابعة</span>
             <h3>تتبع دقيق للمشاريع والورشات وسجل زمني غير قابل للتلاعب</h3>
             <p>
               لوحة تحكم مخصصة لكل ورشة عمل على انفراد، إلى جانب لوحة قيادة شاملة لإدارة الشركة توفر نظرة عليا على كافة المشاريع الجارية بنقرة زر واحدة مع توثيق زمني تفصيلي.
             </p>
-            <ul class="feature-bullets">
+            <ul class="feature-bullets-list">
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span>سجل تدقيق زمني كامل (Audit Log): من وافق على الطلب، من شحن المواد، ومن استلمها بالدقيقة والثانية.</span>
@@ -438,9 +422,9 @@
             </ul>
           </div>
 
-          <div class="feature-photo-wrapper">
-            <img src="https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&q=80&w=1000" alt="مهندس يتابع موقع بناء عبر التابلت">
-            <div class="photo-caption-pill">
+          <div class="feature-photo-box">
+            <img src="https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&q=80&w=1000" alt="مهندس يتابع موقع بناء عبر الهاتف والتابلت">
+            <div class="photo-overlay-glass">
               <h4>متابعة ميدانية حية من قلب موقع العمل</h4>
               <p>بيانات دقيقة بين يديك أينما كنت، سواء في المكتب الرئيسي أو في قلب الورشة.</p>
             </div>
@@ -448,14 +432,14 @@
         </div>
 
         <!-- Feature 3: Inventory & Barcode Tracking -->
-        <div class="feature-row">
-          <div class="feature-content">
+        <div class="feature-showcase-row">
+          <div class="feature-text-block">
             <span class="pill-badge">الباركود والتحركات</span>
             <h3>إدارة المخزون وتتبع المواد برموز Barcode و QR</h3>
             <p>
               حوّل المستودعات ومواقع العمل إلى منظومة رقمية سريعة. تتبع كل مادة ومعدة برمز شريطي فريد، وسجل عمليات النقل والتحويل بين المستودع والمشروع بسرعة وبدون أخطاء كتابية.
             </p>
-            <ul class="feature-bullets">
+            <ul class="feature-bullets-list">
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span>مسح سريع لرموز الباركود عبر كاميرا الهاتف العادي دون الحاجة لأجهزة إضافية.</span>
@@ -475,24 +459,26 @@
             </ul>
           </div>
 
-          <div class="feature-photo-wrapper">
-            <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1000" alt="مستودع منظم مع تتبع بالباركود">
-            <div class="photo-caption-pill">
-              <h4>تنظيم مخزني احترافي وسرعة في الصرف</h4>
-              <p>معرفة الرصيد الفعلي بدقة وتتبع حركة كل شحنة خارجة أو واردة بدون فاقد.</p>
+          <div class="feature-photo-box">
+            <img src="https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&q=80&w=1000" alt="مسح باركود شحنة مواد البناء">
+            <!-- Animated Laser Scan Line -->
+            <div class="scan-laser-line"></div>
+            <div class="photo-overlay-glass">
+              <h4>مسح فوري بالباركود من الهاتف</h4>
+              <p>تأكيد استلام وتسليم الشحنات بدقة 100% وبدون أخطاء كتابية.</p>
             </div>
           </div>
         </div>
 
         <!-- Feature 4: Every Level of Your Team -->
-        <div class="feature-row reversed">
-          <div class="feature-content">
+        <div class="feature-showcase-row reversed">
+          <div class="feature-text-block">
             <span class="pill-badge">صلاحيات وتكامل</span>
             <h3>مصمم لكل فرد في فريقك وفق صلاحيات مدروسة</h3>
             <p>
               لكل دور في الشركة واجهته المخصصة؛ ليرى كل موظف فقط ما يحتاجه لإنجاز عمله بكفاءة وبدون تعقيد، على أي جهاز كمبيوتر أو هاتف محمول.
             </p>
-            <ul class="feature-bullets">
+            <ul class="feature-bullets-list">
               <li>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span><strong>المدير العام وأصحاب الشركة:</strong> مؤشرات مالية إجمالية، مراقبة التكاليف بالدينار (DZD) والموافقة على التحويلات.</span>
@@ -508,23 +494,23 @@
             </ul>
           </div>
 
-          <div class="feature-graphic-card">
-            <div class="graphic-card-header">
-              <div class="graphic-card-title">توزيع الصلاحيات حسب الدور الميداني</div>
-              <span class="pill-badge" style="font-size: 0.76rem; padding: 0.2rem 0.6rem;">أمان وتنظيم</span>
+          <div class="feature-ui-module">
+            <div class="ui-module-header">
+              <div class="ui-module-title">توزيع الصلاحيات حسب الدور الميداني</div>
+              <span class="pill-badge" style="font-size: 0.76rem; padding: 0.25rem 0.65rem;">أمان وتنظيم</span>
             </div>
             <div style="display: flex; flex-direction: column; gap: 1rem;">
-              <div style="padding: 1.15rem; border-radius: var(--radius-sm); background-color: var(--primary-subtle); border: 1px solid rgba(29, 78, 216, 0.15);">
-                <div style="font-weight: 800; color: var(--primary); font-size: 0.98rem;">الإدارة العليا (Admin)</div>
-                <div style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.3rem;">رؤية كاملة للأرباح، تكاليف المشاريع بالدينار الجزائري، التقارير والتدقيق الشامل.</div>
+              <div style="padding: 1.25rem; border-radius: var(--radius-sm); background-color: var(--primary-subtle); border: 1px solid rgba(29, 78, 216, 0.18);">
+                <div style="font-weight: 800; color: var(--primary); font-size: 1rem;">الإدارة العليا (Admin)</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.35rem;">رؤية كاملة للأرباح، تكاليف المشاريع بالدينار الجزائري، التقارير والتدقيق الشامل.</div>
               </div>
-              <div style="padding: 1.15rem; border-radius: var(--radius-sm); background-color: var(--accent-subtle); border: 1px solid rgba(245, 158, 11, 0.2);">
-                <div style="font-weight: 800; color: #b45309; font-size: 0.98rem;">المشرف الميداني (Site Supervisor)</div>
-                <div style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.3rem;">طلب مواد للمشروع، تأكيد وصول الشحنات، وجرد المواد المتبقية بالورشة.</div>
+              <div style="padding: 1.25rem; border-radius: var(--radius-sm); background-color: var(--accent-subtle); border: 1px solid rgba(245, 158, 11, 0.25);">
+                <div style="font-weight: 800; color: #b45309; font-size: 1rem;">المشرف الميداني (Site Supervisor)</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.35rem;">طلب مواد للمشروع، تأكيد وصول الشحنات، وجرد المواد المتبقية بالورشة.</div>
               </div>
-              <div style="padding: 1.15rem; border-radius: var(--radius-sm); background-color: var(--bg-elevated); border: 1px solid var(--border);">
-                <div style="font-weight: 800; color: var(--text-main); font-size: 0.98rem;">أمين المستودع (Warehouse Keeper)</div>
-                <div style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.3rem;">إدخال وتخريج البضائع، قراءة الباركود، وطباعة أذونات التسليم.</div>
+              <div style="padding: 1.25rem; border-radius: var(--radius-sm); background-color: var(--bg-elevated); border: 1px solid var(--border);">
+                <div style="font-weight: 800; color: var(--text-main); font-size: 1rem;">أمين المستودع (Warehouse Keeper)</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.35rem;">إدخال وتخريج البضائع، قراءة الباركود، وطباعة أذونات التسليم.</div>
               </div>
             </div>
           </div>
@@ -533,7 +519,7 @@
     </section>
 
     <!-- ========================================================================
-         Punchy Benefits Section
+         Punchy Benefits Bento Grid
          ======================================================================== -->
     <section class="benefits-section" id="benefits">
       <div class="container">
@@ -545,56 +531,56 @@
           </p>
         </div>
 
-        <div class="benefits-grid">
+        <div class="benefits-grid-modern">
           <!-- Benefit 1 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </div>
             <h4>وداعاً لفوضى مجموعات الواتساب</h4>
             <p>مسار رقمي رسمي ومعتمد من الطلب حتى التسليم والتوثيق، دون فقدان أي رسالة أو طلب مواد.</p>
           </div>
 
           <!-- Benefit 2 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             </div>
             <h4>معرفة مكان كل مادة في أي لحظة</h4>
             <p>رؤية فورية ودقيقة لما هو موجود داخل كل مستودع وما تم شحنه لكل مشروع على حدة.</p>
           </div>
 
           <!-- Benefit 3 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
             </div>
             <h4>رقابة مالية فورية بالدينار (DZD)</h4>
             <p>معرفة تكلفة كل مشروع لحظة بلحظة بدلاً من الانتظار لأسابيع لحساب الفواتير والخسائر.</p>
           </div>
 
           <!-- Benefit 4 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
             </div>
             <h4>مصمم للهاتف الميداني أولاً</h4>
             <p>واجهة سهلة وسريعة تعمل بسلاسة على هواتف المهندسين والمشرفين وسط ظروف الورشة الواقعية.</p>
           </div>
 
           <!-- Benefit 5 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
             </div>
             <h4>سجل تدقيق كامل ومحمي</h4>
             <p>مسؤولية واضحة وموثقة لكل حركة أو تحويل مادة لقطع دابر التلاعب وسوء الاستخدام.</p>
           </div>
 
           <!-- Benefit 6 -->
-          <div class="benefit-card">
-            <div class="benefit-icon-wrapper">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          <div class="bento-benefit-card">
+            <div class="benefit-icon-badge">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
             </div>
             <h4>طباعة ومسح الباركود و QR</h4>
             <p>استلام وصرف المواد في ثوانٍ معدودة عبر مسح الرموز وتفادي الأخطاء اليدوية في كتابة الأكواد.</p>
@@ -604,25 +590,25 @@
     </section>
 
     <!-- ========================================================================
-         Comparison Section — Before vs After Matix
+         Comparison Section
          ======================================================================== -->
     <section class="comparison-section">
       <div class="container">
         <div class="section-header">
-          <span class="pill-badge" style="background: var(--accent-subtle); color: #b45309; border-color: rgba(245, 158, 11, 0.2);">المقارنة الميدانية</span>
+          <span class="pill-badge" style="background: var(--accent-subtle); color: #b45309; border-color: rgba(245, 158, 11, 0.25);">المقارنة الميدانية</span>
           <h2>كيف تتغير إدارة شركتك مع ماتيكس؟</h2>
           <p>شاهد الفرق بين أسلوب العمل التقليدي المشتت ونظام الإدارة الميدانية الحديث.</p>
         </div>
 
-        <div class="comparison-card-container">
-          <div class="comparison-columns">
+        <div class="comparison-wrapper-box">
+          <div class="comparison-grid-duo">
             <!-- Before -->
-            <div class="comparison-side old-way">
-              <div class="side-header">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            <div class="comparison-column-panel traditional">
+              <div class="panel-header">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                 <h3>بدون ماتيكس (الطريقة التقليدية)</h3>
               </div>
-              <ul class="comparison-points">
+              <ul class="panel-points-list">
                 <li>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   <span>طلبات مواد مبعثرة في محادثات واتساب ومكالمات هاتفية لا تترك أثراً.</span>
@@ -643,12 +629,12 @@
             </div>
 
             <!-- After -->
-            <div class="comparison-side new-way">
-              <div class="side-header">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <div class="comparison-column-panel matix-way">
+              <div class="panel-header">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 <h3>مع منصة ماتيكس (MATIX)</h3>
               </div>
-              <ul class="comparison-points">
+              <ul class="panel-points-list">
                 <li>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                   <span>منظومة رقمية مركزية موثقة لكل طلب واستلام وتحويل للمواد.</span>
@@ -673,12 +659,12 @@
     </section>
 
     <!-- ========================================================================
-         Contact / Access Request Section (Standalone — Zero App Login Links)
+         Contact / Access Request Section (Streamlined Channels - Zero Email)
          ======================================================================== -->
     <section class="contact-section" id="contact">
-      <div class="container contact-grid">
+      <div class="container contact-layout-grid">
         <!-- Contact Details Column -->
-        <div class="contact-details-col">
+        <div class="contact-lead-text">
           <div>
             <span class="pill-badge">تواصل معنا الآن</span>
             <h2 style="margin-top: 1rem;">جاهز لضبط تكاليف ومواد مشاريعك؟</h2>
@@ -687,92 +673,76 @@
             </p>
           </div>
 
-          <!-- Direct Channels -->
-          <div class="channels-list">
-            <a href="#" class="channel-box" id="btn-whatsapp-direct">
-              <div class="channel-box-icon whatsapp">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          <!-- Direct Channels (Phone & WhatsApp with 0000) -->
+          <div class="channels-container">
+            <a href="#" class="channel-card-link" id="btn-whatsapp-direct">
+              <div class="channel-icon-pill whatsapp">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
               </div>
-              <div class="channel-box-text">
-                <h4>محادثة مباشرة عبر واتساب</h4>
-                <span>تواصل فوري مع فريق ماتيكس</span>
+              <div class="channel-info-details">
+                <h4>محادثة فورية عبر واتساب</h4>
+                <span>اضغط لفتح المحادثة المباشرة</span>
               </div>
             </a>
 
-            <a href="tel:+213555000000" class="channel-box">
-              <div class="channel-box-icon phone">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <a href="tel:+213000000000" class="channel-card-link">
+              <div class="channel-icon-pill phone">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
               </div>
-              <div class="channel-box-text">
+              <div class="channel-info-details">
                 <h4>الاتصال الهاتفي المباشر</h4>
-                <span>+213 555 00 00 00</span>
-              </div>
-            </a>
-
-            <a href="mailto:contact@matix-dz.com" class="channel-box">
-              <div class="channel-box-icon email">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              </div>
-              <div class="channel-box-text">
-                <h4>البريد الإلكتروني التجاري</h4>
-                <span>contact@matix-dz.com</span>
+                <span>+213 00 00 00 00 00</span>
               </div>
             </a>
           </div>
         </div>
 
         <!-- Contact Form Card -->
-        <div class="contact-form-container">
-          <div class="form-title-group">
+        <div class="form-card-wrapper">
+          <div class="form-header-title">
             <h3>طلب استشارة أو عرض توضيحي مجاني</h3>
-            <p>املأ البيانات وسيقوم أحد مستشارينا الميدانيين بالتواصل معك خلال 24 ساعة.</p>
+            <p>املأ البيانات وسيقوم أحد مستشارينا الميدانيين بالتواصل معك في أقرب وقت.</p>
           </div>
 
-          <div id="form-alert" class="form-alert-box"></div>
+          <div id="form-alert" class="toast-alert-box"></div>
 
-          <form id="inquiry-form" class="lead-form">
-            <div class="form-grid-2">
-              <div class="field-group">
-                <label for="input-name" class="field-label">الاسم الكامل *</label>
-                <input type="text" id="input-name" class="field-input" placeholder="مثال: يوسف معمري" required>
+          <form id="inquiry-form" class="lead-capture-form">
+            <div class="form-row-duo">
+              <div class="form-input-field">
+                <label for="input-name" class="input-label">الاسم الكامل *</label>
+                <input type="text" id="input-name" class="text-input" placeholder="مثال: يوسف معمري" required>
               </div>
-              <div class="field-group">
-                <label for="input-company" class="field-label">اسم الشركة أو المؤسسة *</label>
-                <input type="text" id="input-company" class="field-input" placeholder="مثال: شركة البناء الحديث" required>
+              <div class="form-input-field">
+                <label for="input-company" class="input-label">اسم الشركة أو المؤسسة *</label>
+                <input type="text" id="input-company" class="text-input" placeholder="مثال: شركة البناء الحديث" required>
               </div>
             </div>
 
-            <div class="form-grid-2">
-              <div class="field-group">
-                <label for="input-phone" class="field-label">رقم الهاتف *</label>
-                <input type="tel" id="input-phone" class="field-input" placeholder="0550 00 00 00" dir="ltr" style="text-align: right;" required>
-              </div>
-              <div class="field-group">
-                <label for="input-email" class="field-label">البريد الإلكتروني (اختياري)</label>
-                <input type="email" id="input-email" class="field-input" placeholder="name@company.com" dir="ltr" style="text-align: right;">
-              </div>
+            <div class="form-input-field">
+              <label for="input-phone" class="input-label">رقم الهاتف *</label>
+              <input type="tel" id="input-phone" class="text-input" placeholder="0550 00 00 00" dir="ltr" style="text-align: right;" required>
             </div>
 
-            <div class="field-group">
-              <label for="input-projects" class="field-label">عدد المشاريع أو الورشات النشطة حالياً</label>
-              <select id="input-projects" class="field-select">
+            <div class="form-input-field">
+              <label for="input-projects" class="input-label">عدد المشاريع أو الورشات النشطة حالياً</label>
+              <select id="input-projects" class="select-input">
                 <option value="1-3">1 إلى 3 مشاريع</option>
                 <option value="4-10" selected>4 إلى 10 مشاريع</option>
                 <option value="10+">أكثر من 10 مشاريع</option>
               </select>
             </div>
 
-            <div class="field-group">
-              <label for="input-message" class="field-label">ملاحظات أو تحديات رئيسية تواجهها (اختياري)</label>
-              <textarea id="input-message" class="field-textarea" placeholder="أخبرنا باختصار عن طبيعة المشاريع أو الصعوبات في تتبع المواد والمصاريف..."></textarea>
+            <div class="form-input-field">
+              <label for="input-message" class="input-label">ملاحظات أو تحديات رئيسية تواجهها (اختياري)</label>
+              <textarea id="input-message" class="textarea-input" placeholder="أخبرنا باختصار عن طبيعة المشاريع أو الصعوبات في تتبع المواد والمصاريف..."></textarea>
             </div>
 
             <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.5rem;">
               <span>إرسال طلب العرض التجريبي</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
             </button>
 
-            <div class="privacy-notice">
+            <div class="form-secure-badge">
               🔒 نحترم خصوصية بياناتك بالكامل. لن يتم مشاركة معلوماتك مع أي طرف ثالث.
             </div>
           </form>
@@ -782,24 +752,39 @@
   </main>
 
   <!-- ========================================================================
-       Footer (Standalone — Strictly No App Routes)
+       Mobile Bottom Dock (Fixed 1-Tap Conversion Dock)
+       ======================================================================== -->
+  <div class="mobile-bottom-dock">
+    <div class="dock-actions-row">
+      <a href="#" class="btn btn-whatsapp btn-sm" id="btn-dock-whatsapp" style="padding: 0.75rem 0.5rem; font-size: 0.88rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        <span>واتساب</span>
+      </a>
+      <a href="#contact" class="btn btn-primary btn-sm" style="padding: 0.75rem 0.5rem; font-size: 0.88rem;">
+        <span>طلب عرض تجريبي</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       Footer (Clean, Minimalist, No App Routes, Zero Custom Phrase)
        ======================================================================== -->
   <footer class="site-footer">
     <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="brand-wrapper" style="margin-bottom: 1rem;">
+      <div class="footer-main-grid">
+        <div>
+          <div class="brand-wrapper" style="margin-bottom: 1.25rem;">
             <div class="brand-logo-mark white-bg">M</div>
             <span class="brand-name" style="color: #ffffff;">MATIX</span>
           </div>
-          <p>
+          <p class="footer-about-text">
             المنصة السحابية الميدانية الرائدة في إدارة مواد ومصروفات المشاريع الإنشائية وتتبع المستودعات والمواقع بالباركود في الجزائر والمنطقة.
           </p>
         </div>
 
         <div>
-          <h4 class="footer-heading">أقسام الصفحة</h4>
-          <ul class="footer-nav">
+          <h4 class="footer-nav-title">أقسام الصفحة</h4>
+          <ul class="footer-links-list">
             <li><a href="#problem">المشكلة والتحديات الميدانية</a></li>
             <li><a href="#solution">الحل المتكامل للربط الميداني</a></li>
             <li><a href="#features">المميزات والرقابة المالية (DZD)</a></li>
@@ -809,21 +794,17 @@
         </div>
 
         <div>
-          <h4 class="footer-heading">قنوات التواصل</h4>
-          <ul class="footer-nav">
-            <li>هاتف: +213 555 00 00 00</li>
-            <li>البريد: contact@matix-dz.com</li>
-            <li>ساعات العمل: السبت - الخميس (08:30 - 17:00)</li>
+          <h4 class="footer-nav-title">قنوات التواصل</h4>
+          <ul class="footer-links-list">
+            <li>هاتف: +213 00 00 00 00 00</li>
+            <li>أيام العمل: السبت - الخميس (08:30 - 17:00)</li>
           </ul>
         </div>
       </div>
 
-      <div class="footer-subline">
+      <div class="footer-bottom-bar">
         <div>
           جميع الحقوق محفوظة © 2026 ماتيكس (MATIX). نظام إدارة مشاريع ومستودعات المقاولات.
-        </div>
-        <div style="color: #64748b;">
-          تصميم مخصص لشركات المقاولات والبناء
         </div>
       </div>
     </div>

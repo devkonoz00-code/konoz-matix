@@ -134,8 +134,8 @@ const itemService = {
     const item = await Item.findById(id).populate('categoryId', 'name');
     if (!item) throw new AppError('Item not found', 404, 'NOT_FOUND');
 
-    const barcodes = await Barcode.find({ itemId: id, isActive: true });
-    const obj = item.toObject();
+    const barcodes = await Barcode.find({ itemId: id, isActive: true }).lean();
+    const obj = typeof item.toObject === 'function' ? item.toObject() : { ...item };
     obj.barcodes = barcodes;
 
     // Enrich with current locations with resolved names & responsible managers

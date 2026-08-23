@@ -33,7 +33,7 @@ const projectService = {
           stockService.getProjectTotalConsumption(p._id),
         ]);
 
-        const obj = p.toObject();
+        const obj = typeof p.toObject === 'function' ? p.toObject() : { ...p };
         obj.currentValue = currentValue;
         obj.totalConsumption = totalConsumption;
         return obj;
@@ -44,7 +44,7 @@ const projectService = {
   },
 
   async getById(id) {
-    const project = await Project.findById(id);
+    const project = await Project.findById(id).lean();
     if (!project) throw new AppError('Project not found', 404, 'NOT_FOUND');
 
     const [currentValue, totalConsumption] = await Promise.all([
@@ -52,7 +52,7 @@ const projectService = {
       stockService.getProjectTotalConsumption(project._id),
     ]);
 
-    const obj = project.toObject();
+    const obj = typeof project.toObject === 'function' ? project.toObject() : { ...project };
     obj.currentValue = currentValue;
     obj.totalConsumption = totalConsumption;
     return obj;

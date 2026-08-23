@@ -40,3 +40,8 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Temp and local assets
+_landing_temp/
+OTF-Thmanyahtypeface_KhaledTaha.ME/
+
+

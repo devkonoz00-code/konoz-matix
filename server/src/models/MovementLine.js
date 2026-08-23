@@ -35,5 +35,6 @@ const movementLineSchema = new mongoose.Schema({
 
 movementLineSchema.index({ movementId: 1 });
 movementLineSchema.index({ itemId: 1 });
+movementLineSchema.index({ movementId: 1, itemId: 1 });
 
 module.exports = mongoose.model('MovementLine', movementLineSchema);

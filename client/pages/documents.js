@@ -2,7 +2,7 @@
  * Company Documents (Bon de Vente References) Page Module
  */
 import { api } from '../js/api.js';
-import { formatDate, showToast, showModal } from '../js/app.js';
+import { formatDate, showToast, showModal, escapeHtml } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderDocuments(container) {
@@ -58,13 +58,13 @@ export async function renderDocuments(container) {
       tbody.innerHTML = docs.map(d => `
         <tr>
           <td>
-            <span style="font-family: var(--font-mono); font-weight: 700; color: var(--purple); font-size: 0.95rem;">${d.documentNumber}</span>
+            <span style="font-family: var(--font-mono); font-weight: 700; color: var(--purple); font-size: 0.95rem;">${escapeHtml(d.documentNumber)}</span>
           </td>
-          <td><span class="badge badge-secondary">${d.documentType}</span></td>
+          <td><span class="badge badge-secondary">${escapeHtml(d.documentType)}</span></td>
           <td>${formatDate(d.documentDate).split(',')[0]}</td>
-          <td style="font-family: var(--font-mono); color: var(--text-secondary);">${d.externalReference || '—'}</td>
-          <td style="color: var(--accent-cyan); font-weight: 500;">${d.sourceSystem || 'Internal ERP'}</td>
-          <td style="font-size: 0.8rem; color: var(--text-secondary);">${d.note || '—'}</td>
+          <td style="font-family: var(--font-mono); color: var(--text-secondary);">${escapeHtml(d.externalReference || '—')}</td>
+          <td style="color: var(--accent-cyan); font-weight: 500;">${escapeHtml(d.sourceSystem || 'Internal ERP')}</td>
+          <td style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(d.note || '—')}</td>
         </tr>
       `).join('');
 

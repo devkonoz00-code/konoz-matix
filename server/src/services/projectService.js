@@ -7,6 +7,7 @@ const { AppError } = require('../middleware/errorHandler');
 const auditService = require('./auditService');
 const stockService = require('./stockService');
 const projectAssignmentService = require('./projectAssignmentService');
+const { escapeRegex } = require('../utils/sanitizeRegex');
 const Item = require('../models/Item');
 const MovementLine = require('../models/MovementLine');
 const mongoose = require('mongoose');
@@ -16,12 +17,13 @@ const projectService = {
     const query = {};
     if (filters.status) query.status = filters.status;
     if (filters.search) {
+      const safeSearch = escapeRegex(filters.search.trim());
       query.$or = [
-        { name: { $regex: filters.search, $options: 'i' } },
-        { projectCode: { $regex: filters.search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { projectCode: { $regex: safeSearch, $options: 'i' } },
       ];
     }
-    const projects = await Project.find(query).sort({ createdAt: -1 });
+    const projects = await Project.find(query).sort({ createdAt: -1 }).lean();
 
     // Derive Current Value and Total Consumption per project (§9)
     const enrichedProjects = await Promise.all(

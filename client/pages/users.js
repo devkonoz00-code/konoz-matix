@@ -2,7 +2,7 @@
  * Users & Team Management Page Module
  */
 import { api } from '../js/api.js';
-import { formatDate, showToast, showModal } from '../js/app.js';
+import { formatDate, showToast, showModal, escapeHtml } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderUsers(container) {
@@ -63,19 +63,24 @@ export async function renderUsers(container) {
           VIEWER: 'badge-secondary',
         }[u.role] || 'badge-secondary';
 
+        const safeName = escapeHtml(u.fullName);
+        const safeEmail = escapeHtml(u.email);
+        const safePhone = escapeHtml(u.phone || '—');
+        const safeRole = escapeHtml((u.role || '').replace('_', ' '));
+
         return `
           <tr>
             <td>
-              <div style="font-weight: 600; color: #fff;">${u.fullName}</div>
+              <div style="font-weight: 600; color: #fff;">${safeName}</div>
             </td>
-            <td>${u.email}</td>
-            <td><span class="badge ${roleCls}">${u.role.replace('_', ' ')}</span></td>
-            <td>${u.phone || '—'}</td>
+            <td>${safeEmail}</td>
+            <td><span class="badge ${roleCls}">${safeRole}</span></td>
+            <td>${safePhone}</td>
             <td><span class="badge ${u.isActive ? 'badge-success' : 'badge-danger'}">${u.isActive ? 'Active' : 'Deactivated'}</span></td>
             <td>${formatDate(u.createdAt).split(',')[0]}</td>
             <td>
               ${isAdmin && u.isActive && u._id !== currentUser._id ? `
-                <button class="btn btn-sm btn-danger btn-deact-user" data-id="${u._id}" data-name="${u.fullName}">Deactivate</button>
+                <button class="btn btn-sm btn-danger btn-deact-user" data-id="${u._id}" data-name="${safeName}">Deactivate</button>
               ` : '<span style="color: var(--text-muted);">—</span>'}
             </td>
           </tr>

@@ -29,6 +29,23 @@ import { playSound, playSuccessChime, playConfirmBeep, playErrorTone } from './s
 // Export sound functions for direct use across modules
 export { playSound, playSuccessChime, playConfirmBeep, playErrorTone };
 
+/**
+ * Escapes unsafe characters in strings to prevent Stored/DOM-based XSS attacks.
+ * Safe for inserting dynamic values into HTML templates and attributes.
+ *
+ * @param {*} unsafeStr - Raw input
+ * @returns {string} - HTML-safe escaped string
+ */
+export function escapeHtml(unsafeStr) {
+  if (unsafeStr === null || unsafeStr === undefined) return '';
+  return String(unsafeStr)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ==========================================================================
 // UI Helpers (Toasts, Modals, Formatters)
 // ==========================================================================

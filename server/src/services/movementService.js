@@ -60,7 +60,8 @@ const movementService = {
       .populate('receivedBy', 'fullName email')
       .populate('projectId', 'projectCode name')
       .populate('companyDocumentId', 'documentNumber documentType')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
   },
 
   async getById(id) {
@@ -70,13 +71,15 @@ const movementService = {
       .populate('receivedBy', 'fullName email')
       .populate('projectId', 'projectCode name')
       .populate('requestId', 'requestNumber status')
-      .populate('companyDocumentId', 'documentNumber documentType documentDate');
+      .populate('companyDocumentId', 'documentNumber documentType documentDate')
+      .lean();
 
     if (!movement) throw new AppError('Movement not found', 404, 'NOT_FOUND');
 
     const lines = await MovementLine.find({ movementId: id })
       .populate('itemId', 'itemCode name unit imageUrl unitPrice')
-      .populate('barcodeId', 'code type');
+      .populate('barcodeId', 'code type')
+      .lean();
 
     return { movement, lines };
   },

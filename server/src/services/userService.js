@@ -5,6 +5,7 @@
 const User = require('../models/User');
 const { AppError } = require('../middleware/errorHandler');
 const auditService = require('./auditService');
+const { escapeRegex } = require('../utils/sanitizeRegex');
 
 const userService = {
   async list(filters = {}) {
@@ -12,12 +13,13 @@ const userService = {
     if (filters.role) query.role = filters.role;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
     if (filters.search) {
+      const safeSearch = escapeRegex(filters.search.trim());
       query.$or = [
-        { fullName: { $regex: filters.search, $options: 'i' } },
-        { email: { $regex: filters.search, $options: 'i' } },
+        { fullName: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
       ];
     }
-    return User.find(query).sort({ fullName: 1 });
+    return User.find(query).sort({ fullName: 1 }).lean();
   },
 
   async getById(id) {
@@ -95,6 +97,7 @@ const userService = {
         throw new AppError('Password must be at least 8 characters long', 400, 'WEAK_PASSWORD');
       }
       user.passwordHash = data.password;
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
     }
 
     await user.save();
@@ -126,6 +129,7 @@ const userService = {
 
     const before = user.toJSON();
     user.isActive = false;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     await auditService.log({

@@ -26,14 +26,16 @@ const authService = {
       throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
     }
 
+    const tokenVersion = user.tokenVersion || 0;
+
     const accessToken = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user._id, role: user.role, tokenVersion },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN }
     );
 
     const refreshToken = jwt.sign(
-      { userId: user._id, type: 'refresh' },
+      { userId: user._id, type: 'refresh', tokenVersion },
       env.JWT_REFRESH_SECRET,
       { expiresIn: env.JWT_REFRESH_EXPIRES_IN }
     );
@@ -61,16 +63,26 @@ const authService = {
         throw new AppError('Invalid refresh token', 401, 'INVALID_TOKEN');
       }
 
+      const currentVersion = user.tokenVersion || 0;
+      if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== currentVersion) {
+        throw new AppError('Refresh token has been revoked. Please login again.', 401, 'TOKEN_REVOKED');
+      }
+
       const accessToken = jwt.sign(
-        { userId: user._id, role: user.role },
+        { userId: user._id, role: user.role, tokenVersion: currentVersion },
         env.JWT_SECRET,
         { expiresIn: env.JWT_EXPIRES_IN }
       );
 
       return { accessToken };
     } catch (error) {
+      if (error instanceof AppError) throw error;
       throw new AppError('Invalid refresh token', 401, 'INVALID_TOKEN');
     }
+  },
+
+  async invalidateUserSessions(userId) {
+    await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } });
   },
 
   async getProfile(userId) {

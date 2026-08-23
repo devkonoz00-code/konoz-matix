@@ -31,18 +31,21 @@ const requestService = {
     return MaterialRequest.find(query)
       .populate('projectId', 'projectCode name')
       .populate('requestedBy', 'fullName email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
   },
 
   async getById(id) {
     const request = await MaterialRequest.findById(id)
       .populate('projectId', 'projectCode name')
-      .populate('requestedBy', 'fullName email role');
+      .populate('requestedBy', 'fullName email role')
+      .lean();
 
     if (!request) throw new AppError('Request not found', 404, 'NOT_FOUND');
 
     const lines = await MaterialRequestLine.find({ requestId: id })
-      .populate('itemId', 'itemCode name unit unitPrice imageUrl');
+      .populate('itemId', 'itemCode name unit unitPrice imageUrl')
+      .lean();
 
     return { request, lines };
   },

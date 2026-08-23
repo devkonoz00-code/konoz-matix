@@ -2,7 +2,7 @@
  * Immutable Audit Logs Viewer Module
  */
 import { api } from '../js/api.js';
-import { formatDate, showToast, showModal } from '../js/app.js';
+import { formatDate, showToast, showModal, escapeHtml } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderAuditLogs(container) {
@@ -97,16 +97,22 @@ export async function renderAuditLogs(container) {
           LOGOUT: 'badge-secondary',
         }[l.action] || 'badge-secondary';
 
+        const safeAction = escapeHtml(l.action);
+        const safeEntity = escapeHtml(l.entityType);
+        const safeUser = escapeHtml(l.userId?.fullName || 'System');
+        const safeRole = escapeHtml(l.userId?.role || '');
+        const safeIp = escapeHtml(l.ip || '—');
+
         return `
           <tr>
             <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">${formatDate(l.timestamp)}</td>
-            <td><span class="badge ${actionCls}">${l.action}</span></td>
-            <td style="font-weight: 600; color: #fff;">${l.entityType}</td>
+            <td><span class="badge ${actionCls}">${safeAction}</span></td>
+            <td style="font-weight: 600; color: #fff;">${safeEntity}</td>
             <td>
-              <div>${l.userId?.fullName || 'System'}</div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">${l.userId?.role || ''}</div>
+              <div>${safeUser}</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">${safeRole}</div>
             </td>
-            <td style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">${l.ip || '—'}</td>
+            <td style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">${safeIp}</td>
             <td>
               <button class="btn btn-sm btn-outline btn-view-diff" data-log='${JSON.stringify(l).replace(/'/g, "&apos;")}'>View Diff</button>
             </td>

@@ -26,6 +26,10 @@ const auth = async (req, res, next) => {
       throw new AppError('Account is deactivated', 401, 'ACCOUNT_DEACTIVATED');
     }
 
+    if (decoded.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+      throw new AppError('Session expired or invalidated. Please login again.', 401, 'SESSION_INVALIDATED');
+    }
+
     req.user = user;
     next();
   } catch (error) {

@@ -18,6 +18,7 @@ const authController = {
 
   async logout(req, res, next) {
     try {
+      await authService.invalidateUserSessions(req.user._id);
       await auditService.log({
         userId: req.user._id,
         action: 'LOGOUT',
@@ -25,7 +26,7 @@ const authController = {
         entityId: req.user._id,
         req,
       });
-      res.json({ success: true, message: 'Logged out' });
+      res.json({ success: true, message: 'Logged out successfully' });
     } catch (error) {
       next(error);
     }

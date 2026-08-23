@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Show Success Message
       if (formAlert) {
-        formAlert.className = 'form-alert success';
+        formAlert.className = 'form-alert-box success';
         formAlert.innerHTML = `
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           <div>

@@ -167,8 +167,8 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Standalone marketing landing page route
-app.get(['/landing', '/landing.html'], (req, res) => {
-  res.sendFile(path.join(__dirname, '../../client/landing.html'));
+app.get(['/landing', '/landing/', '/landing.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, '../../client/landing/index.html'));
 });
 
 // SPA fallback — serve index.html for any non-API route

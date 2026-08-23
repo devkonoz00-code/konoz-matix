@@ -324,19 +324,24 @@ async function initApp() {
     const sidebar = document.getElementById('app-sidebar');
     const header = document.querySelector('.top-header');
     const mobileNav = document.querySelector('.mobile-nav');
+    const mainContent = document.getElementById('main-content');
+    const mainWrapper = document.querySelector('.main-wrapper');
+
+    mainContent?.classList.toggle('login-content', isLogin);
+    mainWrapper?.classList.toggle('login-layout', isLogin);
 
     if (isLogin) {
       if (sidebar) sidebar.style.display = 'none';
       if (header) header.style.display = 'none';
       if (mobileNav) mobileNav.style.display = 'none';
-      document.querySelector('.main-wrapper').style.margin = '0';
-      document.querySelector('.main-wrapper').style.width = '100%';
+      mainWrapper.style.margin = '0';
+      mainWrapper.style.width = '100%';
     } else {
       if (sidebar) sidebar.style.display = 'flex';
       if (header) header.style.display = 'flex';
       if (mobileNav) mobileNav.style.display = 'flex';
       const isRtl = document.documentElement.getAttribute('dir') === 'rtl';
-      const wrapper = document.querySelector('.main-wrapper');
+      const wrapper = mainWrapper;
       if (window.innerWidth > 900) {
         wrapper.style.marginLeft = isRtl ? '0' : 'var(--sidebar-width)';
         wrapper.style.marginRight = isRtl ? 'var(--sidebar-width)' : '0';

@@ -5,6 +5,7 @@
 import { api } from '../js/api.js';
 import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
+import { openEditItemModal } from './items.js';
 
 export async function renderItemDetail(container, params) {
   const itemId = params.id;
@@ -28,6 +29,9 @@ export async function renderItemDetail(container, params) {
           <button class="btn btn-success btn-sm" id="btn-detail-receive-stock">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
             <span>📥 تحديث المخزون / استلام بالمستودع</span>
+          </button>
+          <button class="btn btn-outline btn-sm" id="btn-detail-edit-item" style="display: none; color: var(--primary); border-color: rgba(59, 130, 246, 0.4);" title="تعديل بيانات المادة (للأدمن فقط)">
+            <span>✏️ تعديل المادة</span>
           </button>
           <a href="#/items/labels?ids=${itemId}" class="btn btn-primary btn-sm" id="btn-print-item-label">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -424,9 +428,20 @@ export async function renderItemDetail(container, params) {
       });
     });
 
-    // Delete Item Action (ADMIN only)
+    // Edit & Delete Item Actions (ADMIN only)
     const currentUser = api.getCurrentUser();
     const isAdmin = currentUser?.role === 'ADMIN';
+
+    const editBtn = document.getElementById('btn-detail-edit-item');
+    if (editBtn && isAdmin) {
+      editBtn.style.display = 'inline-flex';
+      editBtn.addEventListener('click', () => {
+        openEditItemModal(itemId, () => {
+          renderItemDetail(container, params);
+        });
+      });
+    }
+
     const deleteBtn = document.getElementById('btn-detail-delete-item');
     if (deleteBtn && isAdmin) {
       deleteBtn.style.display = 'inline-flex';

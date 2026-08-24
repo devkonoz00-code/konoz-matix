@@ -3,7 +3,7 @@
  * Full search, filters, multi-select batch label printing, initial stock allocation to warehouses, and update stock receipt.
  */
 import { api } from '../js/api.js';
-import { formatMoney, showToast, showModal, escapeHtml, playConfirmBeep } from '../js/app.js';
+import { formatMoney, showToast, showModal, escapeHtml, formatImageUrl, playConfirmBeep } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
 
@@ -1172,7 +1172,7 @@ export async function openEditItemModal(itemId, onSuccess) {
             <input type="hidden" id="inp-edit-image-url" value="${escapeHtml(item.imageUrl || '')}">
           </div>
           <div id="edit-image-preview-box" style="${item.imageUrl ? '' : 'display: none;'} margin-top: 0.5rem; text-align: center;">
-            <img id="edit-image-preview" src="${item.imageUrl || ''}" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: cover;">
+            <img id="edit-image-preview" src="${formatImageUrl(item.imageUrl)}" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: cover;">
             <div style="margin-top: 0.25rem;">
               <button type="button" id="btn-edit-remove-image" class="btn btn-sm btn-outline" style="font-size: 0.72rem; color: var(--danger);">✕ إزالة الصورة</button>
             </div>
@@ -1200,6 +1200,11 @@ export async function openEditItemModal(itemId, onSuccess) {
         const description = ((modalEl || modal).querySelector('#inp-edit-item-desc')?.value || '').trim();
         const isActive = (modalEl || modal).querySelector('#inp-edit-item-active')?.value === 'true';
         let imageUrl = ((modalEl || modal).querySelector('#inp-edit-image-url')?.value || '').trim();
+
+        // If no new image URL was typed but item already has an image and it wasn't removed, retain it
+        if (!imageUrl && item.imageUrl && (modalEl || modal).querySelector('#edit-image-preview-box')?.style.display !== 'none') {
+          imageUrl = item.imageUrl;
+        }
 
         if (!name || !categoryId || !unit || isNaN(unitPrice) || unitPrice < 0) {
           showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح وبسعر صالح', 'error');

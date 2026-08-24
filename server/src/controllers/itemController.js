@@ -11,7 +11,7 @@ const { ITEM_TYPES } = require('../models/Item');
 const cloudinaryService = require('../services/cloudinaryService');
 const { AppError } = require('../middleware/errorHandler');
 
-const uploadsDir = path.resolve(__dirname, '../../../uploads');
+const uploadsDir = path.resolve(process.cwd(), 'uploads');
 
 /**
  * Validate magic byte signatures to prevent MIME spoofing.
@@ -160,7 +160,7 @@ const itemController = {
             resource_type: 'image',
             allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
           });
-          fileUrl = result.secure_url || result.url;
+          fileUrl = (result.secure_url || result.url || '').replace(/^http:\/\//i, 'https://');
         } catch (uploadError) {
           throw new AppError('Failed to upload image to cloud storage', 502, 'STORAGE_UPLOAD_FAILED');
         }

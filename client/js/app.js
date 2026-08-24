@@ -46,6 +46,31 @@ export function escapeHtml(unsafeStr) {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * Formats image URLs safely to ensure HTTPS and valid path structures.
+ * Forces https:// for Cloudinary/external links to prevent Mixed Content blocking.
+ *
+ * @param {string} url - Raw image URL
+ * @returns {string} - Formatted, HTTPS-safe image URL
+ */
+export function formatImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  let clean = url.trim();
+  if (!clean) return '';
+
+  if (clean.startsWith('http://')) {
+    clean = 'https://' + clean.slice(7);
+  } else if (clean.startsWith('//')) {
+    clean = 'https:' + clean;
+  } else if (clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com')) {
+    clean = 'https://' + clean;
+  } else if (!clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:')) {
+    clean = clean.startsWith('/') ? clean : '/' + clean;
+  }
+
+  return clean;
+}
+
 // ==========================================================================
 // UI Helpers (Toasts, Modals, Formatters)
 // ==========================================================================

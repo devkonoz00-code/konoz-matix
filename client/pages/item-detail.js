@@ -3,7 +3,7 @@
  * Displays item identity, active location balances, barcodes, and chronological movement ledger history.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal } from '../js/app.js';
+import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal, escapeHtml, formatImageUrl } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { openEditItemModal } from './items.js';
 
@@ -180,8 +180,9 @@ export async function renderItemDetail(container, params) {
     // Populate Item Identity
     const photoContainer = document.getElementById('itm-photo-container');
     if (photoContainer) {
-      if (item.imageUrl) {
-        photoContainer.innerHTML = `<img src="${item.imageUrl}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span style=\\'font-size: 2rem; color: var(--text-muted);\\'>📦</span>';">`;
+      const formattedImg = formatImageUrl(item.imageUrl);
+      if (formattedImg) {
+        photoContainer.innerHTML = `<img src="${formattedImg}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span style=\\'font-size: 2rem; color: var(--text-muted);\\'>📦</span>';">`;
       } else {
         photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
       }

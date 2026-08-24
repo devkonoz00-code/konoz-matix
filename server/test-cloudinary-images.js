@@ -13,6 +13,7 @@ process.env.CLOUDINARY_URL = '';
 
 const Item = require('./src/models/Item');
 const auditService = require('./src/services/auditService');
+const logger = require('./src/utils/logger');
 const cloudinaryService = require('./src/services/cloudinaryService');
 const itemService = require('./src/services/itemService');
 const itemRoutes = require('./src/routes/itemRoutes');
@@ -64,7 +65,13 @@ function selectable(value, error) {
 }
 
 async function run() {
-  const { resolveCloudinaryConfiguration, parseItemImageReferenceForCloud } = cloudinaryService.__testing;
+  const {
+    resolveCloudinaryConfiguration,
+    buildUploadOptions,
+    executeUploadStream,
+    normalizeCloudinaryUploadError,
+    parseItemImageReferenceForCloud,
+  } = cloudinaryService.__testing;
 
   await test('requires a complete Cloudinary configuration', () => {
     const missing = resolveCloudinaryConfiguration({});
@@ -89,6 +96,77 @@ async function run() {
     assert.equal(url.configured, true);
     assert.equal(url.cloudName, 'url-cloud');
     assert.equal(resolveCloudinaryConfiguration({ CLOUDINARY_URL: 'https://example.com' }).configured, false);
+  });
+
+  await test('rejects conflicting URL and explicit Cloudinary credentials', () => {
+    const conflict = resolveCloudinaryConfiguration({
+      CLOUDINARY_CLOUD_NAME: 'explicit-cloud',
+      CLOUDINARY_API_KEY: 'explicit-key',
+      CLOUDINARY_API_SECRET: 'explicit-secret',
+      CLOUDINARY_URL: 'cloudinary://url-key:url-secret@url-cloud',
+    });
+    const matching = resolveCloudinaryConfiguration({
+      CLOUDINARY_CLOUD_NAME: 'same-cloud',
+      CLOUDINARY_API_KEY: 'same-key',
+      CLOUDINARY_API_SECRET: 'same-secret',
+      CLOUDINARY_URL: 'cloudinary://same-key:same-secret@same-cloud',
+    });
+
+    assert.equal(conflict.configured, false);
+    assert.equal(conflict.code, 'CLOUDINARY_CONFLICTING_CONFIGURATION');
+    assert.equal(matching.configured, true);
+    assert.equal(matching.source, 'explicit+url');
+  });
+
+  await test('uses the Cloudinary v2 stream signature with an explicit bounded timeout', async () => {
+    let capturedOptions;
+    let capturedBuffer;
+    const fakeUploader = {
+      upload_stream(options, callback) {
+        capturedOptions = options;
+        assert.equal(typeof callback, 'function');
+        return {
+          once() { return this; },
+          end(buffer) {
+            capturedBuffer = buffer;
+            callback(null, { secure_url: NEW_URL, public_id: NEW_PUBLIC_ID });
+          },
+        };
+      },
+    };
+
+    const options = buildUploadOptions({ folder: cloudinaryService.ITEM_IMAGE_FOLDER });
+    const result = await executeUploadStream(fakeUploader, Buffer.from('image'), options);
+    assert.equal(capturedOptions.timeout, cloudinaryService.DEFAULT_UPLOAD_TIMEOUT_MS);
+    assert.equal(capturedOptions.folder, cloudinaryService.ITEM_IMAGE_FOLDER);
+    assert.equal(capturedBuffer.toString(), 'image');
+    assert.equal(result.public_id, NEW_PUBLIC_ID);
+    assert.equal(buildUploadOptions({ timeout: 1 }).timeout, 5_000);
+    assert.equal(buildUploadOptions({ timeout: 999_999 }).timeout, 120_000);
+  });
+
+  await test('classifies Cloudinary auth, timeout, and network failures without leaking credentials', () => {
+    const auth = normalizeCloudinaryUploadError({
+      http_code: 401,
+      message: 'Unknown API key in cloudinary://key:secret@demo-cloud',
+    });
+    const timeout = normalizeCloudinaryUploadError({
+      http_code: 499,
+      name: 'TimeoutError',
+      message: 'Request Timeout',
+    });
+    const network = normalizeCloudinaryUploadError({
+      code: 'EAI_AGAIN',
+      message: 'DNS lookup failed',
+    });
+
+    assert.equal(auth.code, 'CLOUDINARY_AUTH_FAILED');
+    assert.equal(auth.statusCode, 503);
+    assert(!auth.providerMessage.includes('key:secret'));
+    assert.equal(timeout.code, 'CLOUDINARY_UPLOAD_TIMEOUT');
+    assert.equal(timeout.statusCode, 504);
+    assert.equal(network.code, 'CLOUDINARY_UNAVAILABLE');
+    assert.equal(network.statusCode, 502);
   });
 
   await test('validates product image URLs against cloud, folder, and public ID', () => {
@@ -142,6 +220,7 @@ async function run() {
     findById: Item.findById,
     findOneAndUpdate: Item.findOneAndUpdate,
     auditLog: auditService.log,
+    loggerError: logger.error,
     getById: itemService.getById,
     isConfigured: cloudinaryService.isCloudinaryConfigured,
     uploadBuffer: cloudinaryService.uploadBuffer,
@@ -169,6 +248,33 @@ async function run() {
       events.push('audit');
     };
     itemService.getById = async id => ({ _id: id, imageUrl: NEW_URL });
+
+    await test('preserves a classified Cloudinary auth failure through itemService', async () => {
+      events.length = 0;
+      const oldItem = makeItem({ imageUrl: OLD_URL, imagePublicId: OLD_PUBLIC_ID });
+      Item.findById = () => selectable(oldItem);
+      logger.error = (_message, diagnostic) => {
+        events.push(`log:${diagnostic.code}`);
+      };
+      cloudinaryService.uploadBuffer = async () => {
+        throw normalizeCloudinaryUploadError({
+          http_code: 401,
+          message: 'Invalid Signature',
+        });
+      };
+
+      await assert.rejects(
+        itemService.replaceImage(oldItem._id, { buffer: Buffer.from('image') }, request),
+        error => error.statusCode === 503 && error.code === 'CLOUDINARY_AUTH_FAILED'
+      );
+      assert.deepEqual(events, ['log:CLOUDINARY_AUTH_FAILED']);
+
+      logger.error = originals.loggerError;
+      cloudinaryService.uploadBuffer = async () => {
+        events.push('upload-new');
+        return { secure_url: NEW_URL, public_id: NEW_PUBLIC_ID };
+      };
+    });
 
     await test('replaces with CAS, audits, then deletes the saved old Cloudinary image', async () => {
       events.length = 0;
@@ -323,6 +429,7 @@ async function run() {
     Item.findById = originals.findById;
     Item.findOneAndUpdate = originals.findOneAndUpdate;
     auditService.log = originals.auditLog;
+    logger.error = originals.loggerError;
     itemService.getById = originals.getById;
     cloudinaryService.isCloudinaryConfigured = originals.isConfigured;
     cloudinaryService.uploadBuffer = originals.uploadBuffer;

@@ -70,9 +70,17 @@ async function uploadManagedItemImage(file) {
       unique_filename: false,
     });
   } catch (error) {
-    if (error.statusCode === 503) {
-      throw new AppError(error.message, 503, error.code || 'CLOUDINARY_NOT_CONFIGURED');
+    logger.error('Cloudinary product image upload failed',
+      cloudinaryService.getSafeProviderDiagnostic(error));
+
+    if (error.isStorageProviderError) {
+      throw new AppError(
+        error.message || 'Failed to upload product image to Cloudinary.',
+        error.statusCode || 502,
+        error.code || 'STORAGE_UPLOAD_FAILED'
+      );
     }
+
     throw new AppError('Failed to upload product image to Cloudinary.', 502, 'STORAGE_UPLOAD_FAILED');
   }
 

@@ -23,8 +23,25 @@ function getItemImageValidationError(file) {
 }
 
 function getItemImageRequestErrorMessage(error) {
-  if (error?.code === 'CLOUDINARY_NOT_CONFIGURED' || error?.code === 'CLOUDINARY_INVALID_CONFIGURATION') {
+  if (
+    error?.code === 'CLOUDINARY_NOT_CONFIGURED' ||
+    error?.code === 'CLOUDINARY_INVALID_CONFIGURATION' ||
+    error?.code === 'CLOUDINARY_CONFLICTING_CONFIGURATION'
+  ) {
     return 'إعداد Cloudinary غير مكتمل على الخادم. أضف بيانات الحساب ثم أعد تشغيل النظام.';
+  }
+  if (error?.code === 'CLOUDINARY_AUTH_FAILED' || error?.code === 'CLOUDINARY_ACCOUNT_NOT_FOUND') {
+    return 'رفض Cloudinary بيانات الحساب الموجودة على الخادم. تحقق من Cloud name وAPI key وAPI secret وأنها من الحساب نفسه.';
+  }
+  if (
+    error?.code === 'CLOUDINARY_UPLOAD_TIMEOUT' ||
+    error?.code === 'CLOUDINARY_UNAVAILABLE' ||
+    error?.code === 'CLOUDINARY_RATE_LIMITED'
+  ) {
+    return 'تعذر الاتصال بـCloudinary مؤقتًا. انتظر قليلًا ثم أعد المحاولة.';
+  }
+  if (error?.code === 'CLOUDINARY_UPLOAD_REJECTED') {
+    return 'رفض Cloudinary الصورة. تحقق من قيود حساب Cloudinary ثم جرّب صورة JPEG أو PNG أو WebP أصغر من 5 MB.';
   }
   if (error?.code === 'STORAGE_UPLOAD_FAILED' || error?.code === 'INVALID_STORAGE_RESPONSE') {
     return 'فشل رفع الصورة إلى Cloudinary. تحقق من بيانات الحساب والاتصال ثم حاول مجدداً.';

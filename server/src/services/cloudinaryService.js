@@ -8,6 +8,20 @@ const cloudinary = require('cloudinary').v2;
 const env = require('../config/env');
 
 const ITEM_IMAGE_FOLDER = 'matix/items';
+const DEFAULT_UPLOAD_TIMEOUT_MS = 60_000;
+const MIN_UPLOAD_TIMEOUT_MS = 5_000;
+const MAX_UPLOAD_TIMEOUT_MS = 120_000;
+const NETWORK_ERROR_CODES = new Set([
+  'ECONNABORTED',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ESOCKETTIMEDOUT',
+  'ETIMEDOUT',
+]);
 
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -21,6 +35,41 @@ function safeDecode(value) {
   }
 }
 
+function parseCloudinaryUrl(cloudinaryUrl) {
+  try {
+    const parsed = new URL(cloudinaryUrl);
+    if (parsed.protocol !== 'cloudinary:') {
+      throw new Error('invalid protocol');
+    }
+
+    const cloudName = clean(safeDecode(parsed.hostname));
+    const apiKey = clean(safeDecode(parsed.username));
+    const apiSecret = clean(safeDecode(parsed.password));
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new Error('missing URL credentials');
+    }
+
+    return {
+      cloudName,
+      credentials: {
+        cloud_name: cloudName,
+        api_key: apiKey,
+        api_secret: apiSecret,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function credentialsMatch(first, second) {
+  return (
+    first.cloud_name.toLowerCase() === second.cloud_name.toLowerCase() &&
+    first.api_key === second.api_key &&
+    first.api_secret === second.api_secret
+  );
+}
+
 /**
  * Resolve either CLOUDINARY_URL or the three explicit credential variables.
  * The returned error never contains a credential value.
@@ -31,47 +80,50 @@ function resolveCloudinaryConfiguration(source = {}) {
   const apiSecret = clean(source.CLOUDINARY_API_SECRET);
   const cloudinaryUrl = clean(source.CLOUDINARY_URL);
   const hasAnyExplicitValue = Boolean(cloudName || apiKey || apiSecret);
+  const hasCompleteExplicitConfiguration = Boolean(cloudName && apiKey && apiSecret);
+  const explicitCredentials = {
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+  };
+  const urlConfiguration = cloudinaryUrl ? parseCloudinaryUrl(cloudinaryUrl) : null;
 
-  if (cloudName && apiKey && apiSecret) {
+  if (cloudinaryUrl && !urlConfiguration) {
     return {
-      configured: true,
-      source: 'explicit',
-      cloudName,
-      credentials: { cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret },
+      configured: false,
+      code: 'CLOUDINARY_INVALID_CONFIGURATION',
+      message: 'CLOUDINARY_URL must use cloudinary://<api_key>:<api_secret>@<cloud_name>.',
     };
   }
 
-  if (cloudinaryUrl) {
-    try {
-      const parsed = new URL(cloudinaryUrl);
-      if (parsed.protocol !== 'cloudinary:') {
-        throw new Error('invalid protocol');
-      }
+  if (
+    hasCompleteExplicitConfiguration &&
+    urlConfiguration &&
+    !credentialsMatch(explicitCredentials, urlConfiguration.credentials)
+  ) {
+    return {
+      configured: false,
+      code: 'CLOUDINARY_CONFLICTING_CONFIGURATION',
+      message: 'CLOUDINARY_URL and the explicit Cloudinary variables identify different credentials. Keep only one source or make them match.',
+    };
+  }
 
-      const urlCloudName = clean(safeDecode(parsed.hostname));
-      const urlApiKey = clean(safeDecode(parsed.username));
-      const urlApiSecret = clean(safeDecode(parsed.password));
-      if (!urlCloudName || !urlApiKey || !urlApiSecret) {
-        throw new Error('missing URL credentials');
-      }
+  if (hasCompleteExplicitConfiguration) {
+    return {
+      configured: true,
+      source: urlConfiguration ? 'explicit+url' : 'explicit',
+      cloudName,
+      credentials: explicitCredentials,
+    };
+  }
 
-      return {
-        configured: true,
-        source: 'url',
-        cloudName: urlCloudName,
-        credentials: {
-          cloud_name: urlCloudName,
-          api_key: urlApiKey,
-          api_secret: urlApiSecret,
-        },
-      };
-    } catch {
-      return {
-        configured: false,
-        code: 'CLOUDINARY_INVALID_CONFIGURATION',
-        message: 'CLOUDINARY_URL must use cloudinary://<api_key>:<api_secret>@<cloud_name>.',
-      };
-    }
+  if (urlConfiguration) {
+    return {
+      configured: true,
+      source: 'url',
+      cloudName: urlConfiguration.cloudName,
+      credentials: urlConfiguration.credentials,
+    };
   }
 
   if (hasAnyExplicitValue) {
@@ -125,7 +177,146 @@ function createConfigurationError() {
   const error = new Error(status.message || 'Cloudinary is not configured on this server.');
   error.code = status.code || 'CLOUDINARY_NOT_CONFIGURED';
   error.statusCode = 503;
+  error.isStorageProviderError = true;
   return error;
+}
+
+function resolveUploadTimeoutMs(value) {
+  if (value === undefined || value === null || value === '') {
+    return DEFAULT_UPLOAD_TIMEOUT_MS;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_UPLOAD_TIMEOUT_MS;
+  return Math.min(MAX_UPLOAD_TIMEOUT_MS, Math.max(MIN_UPLOAD_TIMEOUT_MS, Math.trunc(parsed)));
+}
+
+function sanitizeProviderMessage(message) {
+  let safeMessage = clean(message).replace(/[\r\n\t]+/g, ' ');
+  if (!safeMessage) return null;
+
+  // A provider/network error should not normally contain credentials, but
+  // redact both URL-shaped credentials and the configured key/secret before
+  // putting the diagnostic in application logs.
+  safeMessage = safeMessage.replace(/cloudinary:\/\/[^\s"']+/gi, 'cloudinary://[REDACTED]');
+  safeMessage = safeMessage
+    .replace(/\b(api[_ -]?key|api[_ -]?secret|signature|token)\s*[:=]\s*[^\s,;&]+/gi, '$1=[REDACTED]')
+    .replace(/([?&](?:api_key|signature|token)=)[^&\s]+/gi, '$1[REDACTED]')
+    .replace(/\bsignature\s+[a-f0-9]{16,}\b/gi, 'signature [REDACTED]');
+  const credentials = configurationState?.credentials || {};
+  for (const sensitiveValue of [credentials.api_key, credentials.api_secret]) {
+    const value = clean(sensitiveValue);
+    if (value.length >= 3) safeMessage = safeMessage.split(value).join('[REDACTED]');
+  }
+
+  return safeMessage.slice(0, 500);
+}
+
+function getProviderErrorDetails(error) {
+  const nested = error && typeof error.error === 'object' ? error.error : null;
+  const providerError = nested || error || {};
+  const rawHttpCode = providerError.http_code ?? error?.http_code;
+  const parsedHttpCode = Number(rawHttpCode);
+  const httpCode = Number.isInteger(parsedHttpCode) && parsedHttpCode > 0
+    ? parsedHttpCode
+    : null;
+
+  return {
+    httpCode,
+    providerCode: clean(providerError.code || error?.code) || null,
+    providerName: clean(providerError.name || error?.name) || null,
+    providerMessage: sanitizeProviderMessage(providerError.message || error?.message),
+  };
+}
+
+/**
+ * Convert Cloudinary/Node network failures into safe operational errors while
+ * retaining non-secret diagnostics for server logs.
+ */
+function normalizeCloudinaryUploadError(error) {
+  if (error?.isStorageProviderError) return error;
+
+  const details = getProviderErrorDetails(error);
+  const providerCode = (details.providerCode || '').toUpperCase();
+  const providerName = (details.providerName || '').toLowerCase();
+  const providerMessage = (details.providerMessage || '').toLowerCase();
+
+  let code = 'STORAGE_UPLOAD_FAILED';
+  let statusCode = 502;
+  let message = 'Cloudinary could not upload the product image.';
+
+  if (
+    details.httpCode === 401 ||
+    details.httpCode === 403 ||
+    providerMessage.includes('invalid signature') ||
+    providerMessage.includes('unknown api key') ||
+    providerMessage.includes('authentication')
+  ) {
+    code = 'CLOUDINARY_AUTH_FAILED';
+    statusCode = 503;
+    message = 'Cloudinary rejected the server credentials. Verify the Cloudinary environment variables on the server.';
+  } else if (details.httpCode === 404) {
+    code = 'CLOUDINARY_ACCOUNT_NOT_FOUND';
+    statusCode = 503;
+    message = 'The configured Cloudinary cloud could not be found. Verify the Cloudinary cloud name on the server.';
+  } else if (
+    details.httpCode === 499 ||
+    providerName.includes('timeout') ||
+    providerCode.includes('TIMEOUT')
+  ) {
+    code = 'CLOUDINARY_UPLOAD_TIMEOUT';
+    statusCode = 504;
+    message = 'Cloudinary image upload timed out. Please retry.';
+  } else if (details.httpCode === 420 || details.httpCode === 429) {
+    code = 'CLOUDINARY_RATE_LIMITED';
+    statusCode = 503;
+    message = 'Cloudinary is rate limiting uploads. Please retry shortly.';
+  } else if (
+    NETWORK_ERROR_CODES.has(providerCode) ||
+    (details.httpCode !== null && details.httpCode >= 500)
+  ) {
+    code = 'CLOUDINARY_UNAVAILABLE';
+    statusCode = 502;
+    message = 'Cloudinary is temporarily unavailable. Please retry.';
+  } else if (details.httpCode === 400) {
+    code = 'CLOUDINARY_UPLOAD_REJECTED';
+    statusCode = 502;
+    message = 'Cloudinary rejected the image upload. Check the image restrictions and Cloudinary account settings.';
+  }
+
+  const normalized = new Error(message);
+  normalized.code = code;
+  normalized.statusCode = statusCode;
+  normalized.http_code = details.httpCode;
+  normalized.providerCode = details.providerCode;
+  normalized.providerName = details.providerName;
+  normalized.providerMessage = details.providerMessage;
+  normalized.isStorageProviderError = true;
+  return normalized;
+}
+
+function getSafeProviderDiagnostic(error) {
+  const configuration = getConfigurationStatus();
+  const details = error?.isStorageProviderError
+    ? {
+        httpCode: error.http_code || null,
+        providerCode: clean(error.providerCode) || null,
+        providerName: clean(error.providerName) || null,
+        providerMessage: sanitizeProviderMessage(error.providerMessage),
+      }
+    : getProviderErrorDetails(error);
+
+  return {
+    provider: 'cloudinary',
+    configurationSource: configuration.source,
+    cloudName: configuration.cloudName,
+    code: clean(error?.code) || 'STORAGE_UPLOAD_FAILED',
+    statusCode: error?.statusCode || 502,
+    providerHttpCode: details.httpCode,
+    providerCode: details.providerCode,
+    providerName: details.providerName,
+    providerMessage: details.providerMessage,
+  };
 }
 
 function isManagedItemPublicId(publicId) {
@@ -194,31 +385,60 @@ function parseItemImageReference(imageUrl, expectedPublicId) {
   return parseItemImageReferenceForCloud(imageUrl, expectedPublicId, configurationState.cloudName);
 }
 
-/** Upload a memory buffer to Cloudinary using upload_stream. */
-function uploadBuffer(buffer, options = {}) {
-  return new Promise((resolve, reject) => {
-    if (!configurationState.configured) {
-      return reject(createConfigurationError());
-    }
+function buildUploadOptions(options = {}) {
+  const uploadOptions = {
+    folder: 'matix',
+    resource_type: 'auto',
+    ...options,
+  };
+  uploadOptions.timeout = resolveUploadTimeoutMs(uploadOptions.timeout);
+  return uploadOptions;
+}
 
-    const uploadOptions = {
-      folder: 'matix',
-      resource_type: 'auto',
-      ...options,
+/**
+ * Execute the Cloudinary v2 stream API. Its public signature is
+ * upload_stream(options, callback), unlike the underlying v1 implementation.
+ */
+function executeUploadStream(uploader, buffer, uploadOptions) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error, result) => {
+      if (settled) return;
+      settled = true;
+      if (error) return reject(normalizeCloudinaryUploadError(error));
+      resolve(result);
     };
 
-    const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
-      if (error) {
-        const safeError = new Error('Cloudinary upload failed.');
-        safeError.code = 'STORAGE_UPLOAD_FAILED';
-        safeError.http_code = error.http_code || 502;
-        return reject(safeError);
+    try {
+      const stream = uploader.upload_stream(uploadOptions, finish);
+      if (!stream || typeof stream.end !== 'function') {
+        throw new Error('Cloudinary SDK did not return an upload stream.');
       }
-      resolve(result);
-    });
-
-    stream.end(buffer);
+      if (typeof stream.once === 'function') {
+        stream.once('error', finish);
+      }
+      stream.end(buffer);
+    } catch (error) {
+      finish(error);
+    }
   });
+}
+
+/** Upload a memory buffer to Cloudinary using upload_stream. */
+function uploadBuffer(buffer, options = {}) {
+  if (!configurationState.configured) {
+    return Promise.reject(createConfigurationError());
+  }
+
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    const error = new Error('A non-empty file buffer is required for upload.');
+    error.code = 'INVALID_UPLOAD_BUFFER';
+    error.statusCode = 400;
+    error.isStorageProviderError = true;
+    return Promise.reject(error);
+  }
+
+  return executeUploadStream(cloudinary.uploader, buffer, buildUploadOptions(options));
 }
 
 /**
@@ -251,9 +471,11 @@ function deleteItemImage(publicId) {
 module.exports = {
   cloudinary,
   ITEM_IMAGE_FOLDER,
+  DEFAULT_UPLOAD_TIMEOUT_MS,
   isCloudinaryConfigured,
   getConfigurationStatus,
   createConfigurationError,
+  getSafeProviderDiagnostic,
   isManagedItemPublicId,
   parseItemImageReference,
   uploadBuffer,
@@ -261,6 +483,10 @@ module.exports = {
   deleteItemImage,
   __testing: {
     resolveCloudinaryConfiguration,
+    resolveUploadTimeoutMs,
+    buildUploadOptions,
+    executeUploadStream,
+    normalizeCloudinaryUploadError,
     parseItemImageReferenceForCloud,
   },
 };

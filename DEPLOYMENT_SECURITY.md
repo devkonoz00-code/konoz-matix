@@ -77,6 +77,11 @@ CLOUDINARY_API_SECRET=
 CLOUDINARY_URL=
 ```
 
+On Render, configure **one Cloudinary method only**: either `CLOUDINARY_URL`
+copied directly from the Cloudinary Console, or the complete three-variable
+set. Enter raw values without surrounding quote characters, then choose
+**Save and deploy** so the running service receives the new values.
+
 ---
 
 ## 3. Nginx HTTPS Reverse Proxy Configuration

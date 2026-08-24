@@ -3,9 +3,99 @@
  * Full search, filters, multi-select batch label printing, initial stock allocation to warehouses, and update stock receipt.
  */
 import { api } from '../js/api.js';
-import { formatMoney, showToast, showModal, escapeHtml } from '../js/app.js';
+import { formatMoney, showToast, showModal, escapeHtml, playConfirmBeep } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
+
+let activeModalScanner = null;
+
+async function startModalScanner(viewportId, boxId, inputEl, modalEl) {
+  const box = modalEl ? modalEl.querySelector('#' + boxId) : document.getElementById(boxId);
+  const viewport = modalEl ? modalEl.querySelector('#' + viewportId) : document.getElementById(viewportId);
+  if (!box || !viewport) return;
+
+  box.style.display = 'block';
+
+  try {
+    if (activeModalScanner) {
+      try { await activeModalScanner.stop(); } catch {}
+      activeModalScanner = null;
+    }
+
+    if (typeof Html5Qrcode === 'undefined') {
+      showToast('جاري تشغيل كاميرا الماسح...', 'info');
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    const scanner = new Html5Qrcode(viewportId);
+    activeModalScanner = scanner;
+
+    const onScanSuccess = async (decodedText) => {
+      const clean = (decodedText || '').trim();
+      if (clean) {
+        if (inputEl) {
+          inputEl.value = clean;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        playConfirmBeep();
+        showToast(`تم مسح الباركود بنجاح: ${clean}`, 'success');
+        try { await scanner.stop(); } catch {}
+        activeModalScanner = null;
+        box.style.display = 'none';
+      }
+    };
+
+    const qrConfig = {
+      fps: 15,
+      qrbox: { width: 250, height: 140 },
+      aspectRatio: 1.3,
+    };
+
+    await scanner.start(
+      { facingMode: 'environment' },
+      qrConfig,
+      onScanSuccess,
+      () => {}
+    );
+  } catch (err) {
+    console.warn('FacingMode environment failed, trying default camera:', err);
+    try {
+      if (activeModalScanner) {
+        await activeModalScanner.start(
+          undefined,
+          { fps: 15, qrbox: { width: 250, height: 140 } },
+          (decodedText) => {
+            const clean = (decodedText || '').trim();
+            if (clean) {
+              if (inputEl) {
+                inputEl.value = clean;
+                inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              playConfirmBeep();
+              showToast(`تم مسح الباركود بنجاح: ${clean}`, 'success');
+              try { activeModalScanner.stop(); } catch {}
+              activeModalScanner = null;
+              box.style.display = 'none';
+            }
+          },
+          () => {}
+        );
+      }
+    } catch (fallbackErr) {
+      showToast('تعذر فتح الكاميرا: ' + (fallbackErr.message || 'يرجى التحقق من صلاحيات الكاميرا'), 'error');
+      box.style.display = 'none';
+    }
+  }
+}
+
+async function stopModalScanner(boxId, modalEl) {
+  const box = modalEl ? modalEl.querySelector('#' + boxId) : document.getElementById(boxId);
+  if (box) box.style.display = 'none';
+  if (activeModalScanner) {
+    try { await activeModalScanner.stop(); } catch {}
+    activeModalScanner = null;
+  }
+}
 
 export async function renderItems(container) {
   document.getElementById('page-title').textContent = i18n.t('nav_items');
@@ -398,8 +488,23 @@ export async function renderItems(container) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">الباركود / QR (اختياري - يولد تلقائياً ITM-XXXXXX إذا ترك فارغاً)</label>
-          <input type="text" id="inp-item-barcode" class="form-control" placeholder="اتركه فارغاً للتوليد التلقائي لرمز ITM-XXXXXX">
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span>الباركود / QR (اختياري)</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">(اتركه فارغاً للتوليد التلقائي لرمز ITM-XXXXXX)</span>
+          </label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="inp-item-barcode" class="form-control" placeholder="امسح بالماسح أو اكتب الكود (مثال: 611123456789)...">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-scan-create-barcode" style="display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; padding: 0.5rem 0.85rem; font-weight: 600;" title="مسح الباركود بالكاميرا مباشرة">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              <span>📷 مسح باركود</span>
+            </button>
+          </div>
+          <div id="create-barcode-scanner-box" style="display: none; margin-top: 0.75rem; background: #0f172a; border-radius: var(--radius-md); padding: 0.75rem; border: 1px solid var(--border-subtle); text-align: center;">
+            <div id="create-barcode-scanner-viewport" style="width: 100%; min-height: 220px; border-radius: var(--radius-sm); overflow: hidden; background: #020617;"></div>
+            <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem;">
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-stop-create-barcode-scanner">✕ إغلاق الماسح</button>
+            </div>
+          </div>
         </div>
       </form>
     `;
@@ -411,19 +516,20 @@ export async function renderItems(container) {
       content,
       confirmText: 'حفظ وتثبيت المادة',
       onConfirm: async () => {
-        const name = document.getElementById('inp-item-name').value.trim();
-        const categoryId = document.getElementById('inp-item-cat').value;
-        const itemType = document.getElementById('inp-item-type').value;
-        const unit = document.getElementById('inp-item-unit').value;
-        const unitPrice = parseFloat(document.getElementById('inp-item-unit-price').value);
-        const initialQty = parseFloat(document.getElementById('inp-item-initial-qty').value) || 0;
-        const warehouseId = document.getElementById('inp-item-target-wh').value;
-        const referenceDocNumber = document.getElementById('inp-item-initial-doc').value.trim();
-        const minStockVal = document.getElementById('inp-item-min-stock').value;
+        stopModalScanner('create-barcode-scanner-box', modal);
+        const name = (modal.querySelector('#inp-item-name')?.value || '').trim();
+        const categoryId = modal.querySelector('#inp-item-cat')?.value;
+        const itemType = modal.querySelector('#inp-item-type')?.value;
+        const unit = modal.querySelector('#inp-item-unit')?.value;
+        const unitPrice = parseFloat(modal.querySelector('#inp-item-unit-price')?.value);
+        const initialQty = parseFloat(modal.querySelector('#inp-item-initial-qty')?.value) || 0;
+        const warehouseId = modal.querySelector('#inp-item-target-wh')?.value;
+        const referenceDocNumber = (modal.querySelector('#inp-item-initial-doc')?.value || '').trim();
+        const minStockVal = modal.querySelector('#inp-item-min-stock')?.value;
         const minimumStock = minStockVal ? parseFloat(minStockVal) : undefined;
-        const brand = document.getElementById('inp-item-brand').value.trim();
-        const barcode = document.getElementById('inp-item-barcode').value.trim() || undefined;
-        let imageUrl = document.getElementById('inp-item-image-url').value.trim() || undefined;
+        const brand = (modal.querySelector('#inp-item-brand')?.value || '').trim();
+        const barcode = (modal.querySelector('#inp-item-barcode')?.value || '').trim() || undefined;
+        let imageUrl = (modal.querySelector('#inp-item-image-url')?.value || '').trim() || undefined;
 
         if (!name || !categoryId || !unit || isNaN(unitPrice)) {
           showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح', 'error');
@@ -431,8 +537,8 @@ export async function renderItems(container) {
         }
 
         // Upload file to server if selected (from gallery or camera)
-        const fileInput = document.getElementById('inp-item-image-file');
-        const cameraInput = document.getElementById('inp-item-image-camera');
+        const fileInput = modal.querySelector('#inp-item-image-file');
+        const cameraInput = modal.querySelector('#inp-item-image-camera');
         const selectedFile = (fileInput && fileInput.files && fileInput.files[0])
           || (cameraInput && cameraInput.files && cameraInput.files[0]);
 
@@ -480,6 +586,16 @@ export async function renderItems(container) {
           return false;
         }
       }
+    });
+
+    // Barcode Scanner in Create Modal
+    modal.querySelector('#btn-scan-create-barcode')?.addEventListener('click', () => {
+      const barcodeInp = modal.querySelector('#inp-item-barcode');
+      startModalScanner('create-barcode-scanner-viewport', 'create-barcode-scanner-box', barcodeInp, modal);
+    });
+
+    modal.querySelector('#btn-stop-create-barcode-scanner')?.addEventListener('click', () => {
+      stopModalScanner('create-barcode-scanner-box', modal);
     });
 
     // Handle Category Toggle & Quick Add inside Modal
@@ -910,8 +1026,8 @@ export async function renderItems(container) {
 }
 
 /**
- * Edit Item Modal — Restricted to ADMIN
- * Allows updating item name, category, unit, price, min stock, brand, model, description, image, and active status.
+ * Edit Item Modal — Restricted to ADMIN & Warehouse Managers
+ * Allows updating item name, category, unit, price, min stock, brand, model, description, barcode (with live camera scan), image, and active status.
  */
 export async function openEditItemModal(itemId, onSuccess) {
   try {
@@ -935,8 +1051,6 @@ export async function openEditItemModal(itemId, onSuccess) {
       { val: 'LITER', label: 'LITER (لتر)' },
       { val: 'BOX', label: 'BOX (علبة / boîte)' },
       { val: 'ROLL', label: 'ROLL (لفة / rouleau)' },
-      { val: 'SET', label: 'SET (طقم / ensemble)' },
-      { val: 'OTHER', label: 'OTHER (أخرى)' },
     ];
 
     const itemTypes = [
@@ -947,6 +1061,8 @@ export async function openEditItemModal(itemId, onSuccess) {
     ];
 
     const currentCatId = (item.categoryId?._id || item.categoryId || '').toString();
+    const primaryBarcode = (item.barcodes || []).find(b => b.isPrimary) || (item.barcodes || [])[0];
+    const currentBarcode = primaryBarcode ? primaryBarcode.code : '';
 
     const content = `
       <form id="form-edit-item">
@@ -1016,6 +1132,27 @@ export async function openEditItemModal(itemId, onSuccess) {
           </div>
         </div>
 
+        <!-- Barcode with live camera scanner -->
+        <div class="form-group">
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span>الباركود / Barcode (المطبوع على الملصق)</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">(يمكن مسحه بالكاميرا مباشرة أو تعديله)</span>
+          </label>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="inp-edit-item-barcode" class="form-control" value="${escapeHtml(currentBarcode)}" placeholder="الباركود...">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-scan-edit-barcode" style="display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; padding: 0.5rem 0.85rem; font-weight: 600;" title="مسح الباركود بالكاميرا">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              <span>📷 مسح باركود</span>
+            </button>
+          </div>
+          <div id="edit-barcode-scanner-box" style="display: none; margin-top: 0.75rem; background: #0f172a; border-radius: var(--radius-md); padding: 0.75rem; border: 1px solid var(--border-subtle); text-align: center;">
+            <div id="edit-barcode-scanner-viewport" style="width: 100%; min-height: 220px; border-radius: var(--radius-sm); overflow: hidden; background: #020617;"></div>
+            <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.5rem;">
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-stop-edit-barcode-scanner">✕ إغلاق الماسح</button>
+            </div>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">الوصف وملاحظات إضافية (Description)</label>
           <textarea id="inp-edit-item-desc" class="form-control" rows="2" placeholder="وصف تفصيلي أو مواصفات تقنية...">${escapeHtml(item.description || '')}</textarea>
@@ -1044,23 +1181,25 @@ export async function openEditItemModal(itemId, onSuccess) {
       </form>
     `;
 
-    showModal({
+    const modal = showModal({
       title: `✏️ تعديل بيانات المادة: ${item.name}`,
       content,
       confirmText: 'حفظ التعديلات',
-      onConfirm: async () => {
-        const name = document.getElementById('inp-edit-item-name')?.value.trim();
-        const categoryId = document.getElementById('inp-edit-item-cat')?.value;
-        const itemType = document.getElementById('inp-edit-item-type')?.value;
-        const unit = document.getElementById('inp-edit-item-unit')?.value;
-        const unitPrice = parseFloat(document.getElementById('inp-edit-item-unit-price')?.value);
-        const minStockVal = document.getElementById('inp-edit-item-min-stock')?.value.trim();
-        const minimumStock = minStockVal ? parseFloat(minStockVal) : undefined;
-        const brand = document.getElementById('inp-edit-item-brand')?.value.trim() || undefined;
-        const model = document.getElementById('inp-edit-item-model')?.value.trim() || undefined;
-        const description = document.getElementById('inp-edit-item-desc')?.value.trim() || undefined;
-        const isActive = document.getElementById('inp-edit-item-active')?.value === 'true';
-        let imageUrl = document.getElementById('inp-edit-image-url')?.value.trim() || undefined;
+      onConfirm: async (modalEl) => {
+        stopModalScanner('edit-barcode-scanner-box', modalEl || modal);
+        const name = (modalEl || modal).querySelector('#inp-edit-item-name')?.value.trim();
+        const categoryId = (modalEl || modal).querySelector('#inp-edit-item-cat')?.value;
+        const itemType = (modalEl || modal).querySelector('#inp-edit-item-type')?.value;
+        const unit = (modalEl || modal).querySelector('#inp-edit-item-unit')?.value;
+        const unitPrice = parseFloat((modalEl || modal).querySelector('#inp-edit-item-unit-price')?.value);
+        const minStockVal = ((modalEl || modal).querySelector('#inp-edit-item-min-stock')?.value || '').trim();
+        const minimumStock = minStockVal ? parseFloat(minStockVal) : null;
+        const brand = ((modalEl || modal).querySelector('#inp-edit-item-brand')?.value || '').trim();
+        const model = ((modalEl || modal).querySelector('#inp-edit-item-model')?.value || '').trim();
+        const barcode = ((modalEl || modal).querySelector('#inp-edit-item-barcode')?.value || '').trim();
+        const description = ((modalEl || modal).querySelector('#inp-edit-item-desc')?.value || '').trim();
+        const isActive = (modalEl || modal).querySelector('#inp-edit-item-active')?.value === 'true';
+        let imageUrl = ((modalEl || modal).querySelector('#inp-edit-image-url')?.value || '').trim();
 
         if (!name || !categoryId || !unit || isNaN(unitPrice) || unitPrice < 0) {
           showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح وبسعر صالح', 'error');
@@ -1068,8 +1207,8 @@ export async function openEditItemModal(itemId, onSuccess) {
         }
 
         // Upload file if new image was picked
-        const fileInput = document.getElementById('inp-edit-image-file');
-        const cameraInput = document.getElementById('inp-edit-image-camera');
+        const fileInput = (modalEl || modal).querySelector('#inp-edit-image-file');
+        const cameraInput = (modalEl || modal).querySelector('#inp-edit-image-camera');
         const selectedFile = (fileInput?.files?.[0]) || (cameraInput?.files?.[0]);
 
         if (selectedFile) {
@@ -1096,6 +1235,7 @@ export async function openEditItemModal(itemId, onSuccess) {
             minimumStock,
             brand,
             model,
+            barcode: barcode || undefined,
             description,
             imageUrl: imageUrl || '',
             isActive,
@@ -1111,38 +1251,46 @@ export async function openEditItemModal(itemId, onSuccess) {
       }
     });
 
+    // Barcode scanner listener in Edit Modal
+    modal.querySelector('#btn-scan-edit-barcode')?.addEventListener('click', () => {
+      const barcodeInp = modal.querySelector('#inp-edit-item-barcode');
+      startModalScanner('edit-barcode-scanner-viewport', 'edit-barcode-scanner-box', barcodeInp, modal);
+    });
+
+    modal.querySelector('#btn-stop-edit-barcode-scanner')?.addEventListener('click', () => {
+      stopModalScanner('edit-barcode-scanner-box', modal);
+    });
+
     // Wire up image preview and remove button inside modal
-    setTimeout(() => {
-      const fileInput = document.getElementById('inp-edit-image-file');
-      const cameraInput = document.getElementById('inp-edit-image-camera');
-      const previewBox = document.getElementById('edit-image-preview-box');
-      const previewImg = document.getElementById('edit-image-preview');
-      const removeBtn = document.getElementById('btn-edit-remove-image');
-      const urlInput = document.getElementById('inp-edit-image-url');
+    const fileInput = modal.querySelector('#inp-edit-image-file');
+    const cameraInput = modal.querySelector('#inp-edit-image-camera');
+    const previewBox = modal.querySelector('#edit-image-preview-box');
+    const previewImg = modal.querySelector('#edit-image-preview');
+    const removeBtn = modal.querySelector('#btn-edit-remove-image');
+    const urlInput = modal.querySelector('#inp-edit-image-url');
 
-      function handleFileChange(e) {
-        const file = e.target.files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            if (previewImg) previewImg.src = evt.target.result;
-            if (previewBox) previewBox.style.display = 'block';
-          };
-          reader.readAsDataURL(file);
-        }
+    function handleFileChange(e) {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          if (previewImg) previewImg.src = evt.target.result;
+          if (previewBox) previewBox.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
       }
+    }
 
-      fileInput?.addEventListener('change', handleFileChange);
-      cameraInput?.addEventListener('change', handleFileChange);
+    fileInput?.addEventListener('change', handleFileChange);
+    cameraInput?.addEventListener('change', handleFileChange);
 
-      removeBtn?.addEventListener('click', () => {
-        if (fileInput) fileInput.value = '';
-        if (cameraInput) cameraInput.value = '';
-        if (urlInput) urlInput.value = '';
-        if (previewImg) previewImg.src = '';
-        if (previewBox) previewBox.style.display = 'none';
-      });
-    }, 50);
+    removeBtn?.addEventListener('click', () => {
+      if (fileInput) fileInput.value = '';
+      if (cameraInput) cameraInput.value = '';
+      if (urlInput) urlInput.value = '';
+      if (previewImg) previewImg.src = '';
+      if (previewBox) previewBox.style.display = 'none';
+    });
 
   } catch (err) {
     showToast(err.message || 'تعذر تحميل بيانات المادة', 'error');

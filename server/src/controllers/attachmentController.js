@@ -5,7 +5,7 @@ const Attachment = require('../models/Attachment');
 const { AppError } = require('../middleware/errorHandler');
 const cloudinaryService = require('../services/cloudinaryService');
 
-const uploadsDir = path.resolve(process.cwd(), 'uploads');
+const uploadsDir = path.resolve(__dirname, '../../../uploads');
 
 /**
  * Validate magic byte signatures against expected file types to prevent MIME spoofing.
@@ -100,7 +100,7 @@ const attachmentController = {
             allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
           });
           cloudinaryPublicId = result.public_id;
-          fileUrl = (result.secure_url || result.url || '').replace(/^http:\/\//i, 'https://');
+          fileUrl = result.secure_url || result.url;
         } catch (uploadError) {
           // Safe error handling: never leak provider credentials or internal stack to client
           throw new AppError('Failed to upload file to cloud storage provider', 502, 'STORAGE_UPLOAD_FAILED');

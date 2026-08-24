@@ -251,53 +251,17 @@ const itemService = {
 
     const before = item.toJSON();
 
-    if (data.name !== undefined && data.name !== null) {
-      item.name = String(data.name).trim();
-    }
-    if (data.description !== undefined) item.description = data.description;
-    if (data.categoryId !== undefined) item.categoryId = data.categoryId;
-    if (data.brand !== undefined) item.brand = data.brand;
-    if (data.model !== undefined) item.model = data.model;
-    if (data.unit !== undefined) item.unit = data.unit;
-    if (data.unitPrice !== undefined && !isNaN(Number(data.unitPrice))) {
-      item.unitPrice = Number(data.unitPrice);
-    } else if (data.currentCostPrice !== undefined && !isNaN(Number(data.currentCostPrice))) {
-      item.unitPrice = Number(data.currentCostPrice);
-    }
-    if (data.minimumStock !== undefined) {
-      item.minimumStock = (data.minimumStock === null || data.minimumStock === '' || isNaN(data.minimumStock))
-        ? null
-        : Number(data.minimumStock);
-    }
-    if (data.imageUrl !== undefined) {
-      if (data.imageUrl === '' || data.imageUrl === null) {
-        item.imageUrl = null;
-      } else {
-        const cleanImg = String(data.imageUrl).trim();
-        if (cleanImg && cleanImg !== 'undefined' && cleanImg !== 'null') {
-          item.imageUrl = cleanImg;
-        }
-      }
-    }
-    if (data.itemType !== undefined) item.itemType = data.itemType;
-    if (data.isActive !== undefined) item.isActive = Boolean(data.isActive);
+    const allowedFields = [
+      'name', 'description', 'categoryId', 'brand', 'model', 'unit',
+      'unitPrice', 'minimumStock', 'imageUrl', 'itemType', 'isActive',
+    ];
 
-    // If barcode was updated / provided, synchronize the primary Barcode record
-    if (data.barcode !== undefined && data.barcode !== null && String(data.barcode).trim()) {
-      const cleanBarcode = String(data.barcode).trim();
-      const existingPrimary = await Barcode.findOne({ itemId: item._id, isPrimary: true });
-      if (existingPrimary) {
-        existingPrimary.code = cleanBarcode;
-        existingPrimary.type = (cleanBarcode.length === 13 && /^\d{13}$/.test(cleanBarcode)) ? 'EAN-13' : 'CODE-128';
-        await existingPrimary.save();
-      } else {
-        await Barcode.create({
-          itemId: item._id,
-          code: cleanBarcode,
-          type: (cleanBarcode.length === 13 && /^\d{13}$/.test(cleanBarcode)) ? 'EAN-13' : 'CODE-128',
-          isPrimary: true,
-        });
-      }
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) item[field] = data[field];
+    }
+    // Handle fallback if frontend sent currentCostPrice
+    if (data.unitPrice === undefined && data.currentCostPrice !== undefined) {
+      item.unitPrice = data.currentCostPrice;
     }
 
     await item.save();

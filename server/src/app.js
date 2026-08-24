@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
-const fs = require('fs');
 const env = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
 const { apiLimiter, exportLimiter } = require('./middleware/rateLimiter');
@@ -49,8 +48,7 @@ app.use(helmet({
         "'self'",
         'data:',
         'blob:',
-        'https:',
-        'http:',
+        'https://res.cloudinary.com',
       ],
       connectSrc: ["'self'"],
       objectSrc: ["'none'"],
@@ -101,23 +99,11 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(sanitize);
 
 // 6. Serve local uploads fallback and static frontend files with caching
-const candidateUploadDirs = [
-  path.resolve(process.cwd(), 'uploads'),
-  path.resolve(__dirname, '../../uploads'),
-  path.resolve(__dirname, '../../../uploads'),
-  path.resolve(__dirname, '../uploads'),
-  path.resolve(process.cwd(), 'server/uploads'),
-];
-
-candidateUploadDirs.forEach(dirPath => {
-  try {
-    if (fs.existsSync(dirPath)) {
-      app.use('/uploads', express.static(dirPath, { dotfiles: 'ignore', index: false, maxAge: '1d' }));
-    }
-  } catch {}
-});
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
-
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads'), {
+  dotfiles: 'ignore',
+  index: false,
+  maxAge: '1d',
+}));
 app.use(express.static(path.join(__dirname, '../../client'), {
   maxAge: env.NODE_ENV === 'production' ? '1d' : '0',
   etag: true,

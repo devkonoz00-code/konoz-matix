@@ -41,6 +41,11 @@ const itemSchema = new mongoose.Schema({
     default: null,
   },
   imageUrl: String,
+  imagePublicId: {
+    type: String,
+    trim: true,
+    select: false,
+  },
   itemType: {
     type: String,
     enum: ITEM_TYPES,
@@ -62,5 +67,4 @@ itemSchema.index({ isActive: 1 });
 module.exports = mongoose.model('Item', itemSchema);
 module.exports.ITEM_TYPES = ITEM_TYPES;
 module.exports.ITEM_UNITS = ITEM_UNITS;
-
 

@@ -3,8 +3,9 @@
  * Displays item identity, active location balances, barcodes, and chronological movement ledger history.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal } from '../js/app.js';
+import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal, escapeHtml, formatImageUrl } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
+import { openEditItemModal } from './items.js';
 
 export async function renderItemDetail(container, params) {
   const itemId = params.id;
@@ -28,6 +29,9 @@ export async function renderItemDetail(container, params) {
           <button class="btn btn-success btn-sm" id="btn-detail-receive-stock">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
             <span>📥 تحديث المخزون / استلام بالمستودع</span>
+          </button>
+          <button class="btn btn-outline btn-sm" id="btn-detail-edit-item" style="display: none; color: var(--primary); border-color: rgba(59, 130, 246, 0.4);" title="تعديل بيانات المادة">
+            <span>✏️ تعديل المادة</span>
           </button>
           <a href="#/items/labels?ids=${itemId}" class="btn btn-primary btn-sm" id="btn-print-item-label">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -176,8 +180,13 @@ export async function renderItemDetail(container, params) {
     // Populate Item Identity
     const photoContainer = document.getElementById('itm-photo-container');
     if (photoContainer) {
-      if (item.imageUrl) {
-        photoContainer.innerHTML = `<img src="${item.imageUrl}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span style=\\'font-size: 2rem; color: var(--text-muted);\\'>📦</span>';">`;
+      const formattedImg = formatImageUrl(item.imageUrl);
+      if (formattedImg) {
+        photoContainer.innerHTML = `<img src="${escapeHtml(formattedImg)}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" id="detail-item-img">`;
+        const detailImg = photoContainer.querySelector('#detail-item-img');
+        detailImg?.addEventListener('error', () => {
+          photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
+        });
       } else {
         photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
       }
@@ -404,7 +413,7 @@ export async function renderItemDetail(container, params) {
       `;
 
       showModal({
-        title: `Attach Barcode to ${item.name}`,
+        title: `Attach Barcode to ${escapeHtml(item.name || '')}`,
         content,
         confirmText: 'Attach Barcode',
         onConfirm: async () => {
@@ -424,9 +433,19 @@ export async function renderItemDetail(container, params) {
       });
     });
 
-    // Delete Item Action (ADMIN only)
+    // Edit Item Action (ADMIN and WAREHOUSE_MANAGER)
     const currentUser = api.getCurrentUser();
     const isAdmin = currentUser?.role === 'ADMIN';
+    const canEditItem = ['ADMIN', 'WAREHOUSE_MANAGER'].includes(currentUser?.role);
+    const editBtn = document.getElementById('btn-detail-edit-item');
+    if (editBtn && canEditItem) {
+      editBtn.style.display = 'inline-flex';
+      editBtn.addEventListener('click', () => {
+        openEditItemModal(itemId, () => renderItemDetail(container, params));
+      });
+    }
+
+    // Delete Item Action (ADMIN only)
     const deleteBtn = document.getElementById('btn-detail-delete-item');
     if (deleteBtn && isAdmin) {
       deleteBtn.style.display = 'inline-flex';
@@ -435,7 +454,7 @@ export async function renderItemDetail(container, params) {
           title: '⚠️ تأكيد حذف المادة',
           content: `
             <p style="color: var(--text-primary); margin-bottom: 0.5rem;">
-              هل أنت متأكد من رغبتك في حذف المادة <strong>${item.name}</strong> (${item.itemCode}) من الكتالوج؟
+              هل أنت متأكد من رغبتك في حذف المادة <strong>${escapeHtml(item.name || '')}</strong> (${escapeHtml(item.itemCode || '')}) من الكتالوج؟
             </p>
             <p style="color: var(--danger); font-size: 0.82rem; margin-bottom: 0;">
               سيتم إلغاء تفعيل هذه المادة وحذفها من الكتالوج وعمليات البحث مع الحفاظ على سلامة سجلات الحركات التاريخية.
@@ -445,7 +464,7 @@ export async function renderItemDetail(container, params) {
           onConfirm: async () => {
             try {
               await api.delete(`/items/${itemId}`);
-              showToast(`تم حذف المادة "${item.name}" بنجاح`, 'success');
+              showToast(`تم حذف المادة "${escapeHtml(item.name || '')}" بنجاح`, 'success');
               window.location.hash = '#/items';
               return true;
             } catch (err) {

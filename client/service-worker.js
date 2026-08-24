@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matix-v1.0.5';
+const CACHE_NAME = 'matix-v1.0.8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -59,6 +59,46 @@ self.addEventListener('fetch', (event) => {
           }
         );
       })
+    );
+    return;
+  }
+
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+  const isAppCode = (
+    event.request.mode === 'navigate' ||
+    ['script', 'style', 'worker'].includes(event.request.destination) ||
+    (
+      requestUrl.origin === self.location.origin &&
+      /\.(?:html|js|css)$/i.test(requestUrl.pathname)
+    )
+  );
+
+  // Application code must be network-first so a previous service worker
+  // cannot keep serving an old UI after a deployment. Cached copies remain
+  // available as an offline fallback.
+  if (isAppCode) {
+    event.respondWith(
+      fetch(event.request)
+        .then(async (networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            try {
+              const cache = await caches.open(CACHE_NAME);
+              await cache.put(event.request, networkResponse.clone());
+            } catch {
+              // A cache quota/write failure must never hide a valid response.
+            }
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cachedResponse = await caches.match(event.request);
+          return cachedResponse || new Response('Application shell unavailable while offline.', { status: 503 });
+        })
     );
     return;
   }

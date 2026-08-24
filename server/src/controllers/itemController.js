@@ -1,6 +1,3 @@
-const path = require('path');
-const crypto = require('crypto');
-const fs = require('fs');
 const itemService = require('../services/itemService');
 const stockService = require('../services/stockService');
 const Barcode = require('../models/Barcode');
@@ -10,8 +7,6 @@ const { validateRequired, validateEnum } = require('../validators/common');
 const { ITEM_TYPES } = require('../models/Item');
 const cloudinaryService = require('../services/cloudinaryService');
 const { AppError } = require('../middleware/errorHandler');
-
-const uploadsDir = path.resolve(__dirname, '../../../uploads');
 
 /**
  * Validate magic byte signatures to prevent MIME spoofing.
@@ -36,6 +31,31 @@ function validateFileSignature(buffer, mimetype) {
     );
   }
   return false;
+}
+
+function validateImageFile(file) {
+  if (!file) {
+    throw new AppError('No image file uploaded', 400, 'NO_FILE');
+  }
+
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    throw new AppError('Only JPEG, PNG, and WebP images are allowed', 400, 'INVALID_FILE_TYPE');
+  }
+
+  if (!validateFileSignature(file.buffer, file.mimetype)) {
+    throw new AppError('File content does not match the declared image type', 400, 'INVALID_FILE_SIGNATURE');
+  }
+}
+
+function assertProductImageStorageConfigured() {
+  if (cloudinaryService.isCloudinaryConfigured()) return;
+  const status = cloudinaryService.getConfigurationStatus();
+  throw new AppError(
+    status.message || 'Product image storage is not configured.',
+    503,
+    status.code || 'CLOUDINARY_NOT_CONFIGURED'
+  );
 }
 
 const itemController = {
@@ -104,6 +124,9 @@ const itemController = {
   async update(req, res, next) {
     try {
       if (req.body.itemType) validateEnum(req.body.itemType, ITEM_TYPES, 'itemType');
+      if (req.body.isActive !== undefined && req.user?.role !== 'ADMIN') {
+        throw new AppError('Only administrators can change item activation status.', 403, 'FORBIDDEN');
+      }
       const item = await itemService.update(req.params.id, req.body, req);
       res.json({ success: true, data: item });
     } catch (error) {
@@ -136,47 +159,21 @@ const itemController = {
     }
   },
 
-  async uploadImage(req, res, next) {
+  async replaceImage(req, res, next) {
     try {
-      if (!req.file) {
-        throw new AppError('No image file uploaded', 400, 'NO_FILE');
-      }
+      validateImageFile(req.file);
+      assertProductImageStorageConfigured();
+      const item = await itemService.replaceImage(req.params.id, req.file, req);
+      res.json({ success: true, data: item });
+    } catch (error) {
+      next(error);
+    }
+  },
 
-      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!allowedMimeTypes.includes(req.file.mimetype)) {
-        throw new AppError('Only JPEG, PNG, and WebP images are allowed', 400, 'INVALID_FILE_TYPE');
-      }
-
-      if (!validateFileSignature(req.file.buffer, req.file.mimetype)) {
-        throw new AppError('File content does not match the declared image type', 400, 'INVALID_FILE_SIGNATURE');
-      }
-
-      let fileUrl;
-
-      if (cloudinaryService.isCloudinaryConfigured()) {
-        try {
-          const result = await cloudinaryService.uploadBuffer(req.file.buffer, {
-            folder: 'matix/items',
-            resource_type: 'image',
-            allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-          });
-          fileUrl = result.secure_url || result.url;
-        } catch (uploadError) {
-          throw new AppError('Failed to upload image to cloud storage', 502, 'STORAGE_UPLOAD_FAILED');
-        }
-      } else {
-        // Local disk fallback
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-        const ext = path.extname(req.file.originalname || '.jpg').toLowerCase();
-        const safeRandomName = `${crypto.randomBytes(16).toString('hex')}${ext}`;
-        const destinationPath = path.join(uploadsDir, safeRandomName);
-        await fs.promises.writeFile(destinationPath, req.file.buffer);
-        fileUrl = `/uploads/${safeRandomName}`;
-      }
-
-      res.status(200).json({ success: true, data: { url: fileUrl } });
+  async deleteImage(req, res, next) {
+    try {
+      const item = await itemService.removeImage(req.params.id, req);
+      res.json({ success: true, data: item });
     } catch (error) {
       next(error);
     }
@@ -193,4 +190,3 @@ const itemController = {
 };
 
 module.exports = itemController;
-

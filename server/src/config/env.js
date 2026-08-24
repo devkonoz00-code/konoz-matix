@@ -19,6 +19,7 @@ const env = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+  CLOUDINARY_URL: process.env.CLOUDINARY_URL,
 };
 
 // Validate required env vars
@@ -39,4 +40,3 @@ if (env.NODE_ENV === 'production') {
 }
 
 module.exports = env;
-

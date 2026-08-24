@@ -139,7 +139,8 @@ async function runGoldenScenario() {
     category = await Category.create({ name: 'Matériaux de Construction' });
   }
 
-  // STEP 1: Create Item with photo, no barcode, and starting quantity 50 at المخزن
+  // STEP 1: Create Item, no barcode, and starting quantity 50 at المخزن.
+  // Product photos are now added separately through PUT /api/items/:id/image.
   console.log('\n--- Step 1: Create Item with starting quantity 50 at المخزن (§18.1) ---');
   const item1 = await itemService.create({
     name: 'Ciment Portland 50kg',
@@ -148,7 +149,6 @@ async function runGoldenScenario() {
     unit: 'BAG',
     unitPrice: 950.00, // 950 DZD
     minimumStock: 20,
-    imageUrl: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
     initialQuantity: 50,
     warehouseId: whMakhzan._id,
   }, adminReq);

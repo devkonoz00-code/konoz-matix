@@ -3,9 +3,37 @@
  * Full search, filters, multi-select batch label printing, initial stock allocation to warehouses, and update stock receipt.
  */
 import { api } from '../js/api.js';
-import { formatMoney, showToast, showModal } from '../js/app.js';
+import { formatMoney, showToast, showModal, escapeHtml, formatImageUrl } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
+
+const ITEM_EDITOR_ROLES = new Set(['ADMIN', 'WAREHOUSE_MANAGER']);
+const ITEM_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ITEM_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+function getItemImageValidationError(file) {
+  if (!file) return '';
+  if (!ITEM_IMAGE_TYPES.has(file.type)) {
+    return 'صيغة الصورة غير مدعومة. استخدم JPEG أو PNG أو WebP';
+  }
+  if (file.size > ITEM_IMAGE_MAX_BYTES) {
+    return 'حجم الصورة يتجاوز الحد الأقصى 5 MB';
+  }
+  return '';
+}
+
+function getItemImageRequestErrorMessage(error) {
+  if (error?.code === 'CLOUDINARY_NOT_CONFIGURED' || error?.code === 'CLOUDINARY_INVALID_CONFIGURATION') {
+    return 'إعداد Cloudinary غير مكتمل على الخادم. أضف بيانات الحساب ثم أعد تشغيل النظام.';
+  }
+  if (error?.code === 'STORAGE_UPLOAD_FAILED' || error?.code === 'INVALID_STORAGE_RESPONSE') {
+    return 'فشل رفع الصورة إلى Cloudinary. تحقق من بيانات الحساب والاتصال ثم حاول مجدداً.';
+  }
+  if (error?.code === 'ITEM_IMAGE_CONFLICT') {
+    return 'تم تعديل المادة في الوقت نفسه من جلسة أخرى. أعد فتح التعديل ثم حاول مجدداً.';
+  }
+  return escapeHtml(error?.message || 'خطأ غير معروف');
+}
 
 export async function renderItems(container) {
   document.getElementById('page-title').textContent = i18n.t('nav_items');
@@ -119,46 +147,61 @@ export async function renderItems(container) {
 
       const currentUser = api.getCurrentUser();
       const isAdmin = currentUser?.role === 'ADMIN';
+      const canEditItems = ITEM_EDITOR_ROLES.has(currentUser?.role);
 
       tbody.innerHTML = items.map(it => {
         const primaryBarcode = it.barcodes?.find(b => b.isPrimary) || it.barcodes?.[0];
         const barcodeCode = primaryBarcode ? primaryBarcode.code : it.itemCode;
+        const itemId = escapeHtml(it._id || '');
+        const itemCode = escapeHtml(it.itemCode || '');
+        const itemName = escapeHtml(it.name || '');
+        const itemBrand = escapeHtml(it.brand || '');
+        const itemModel = escapeHtml(it.model || '');
+        const itemCategory = escapeHtml(it.categoryId?.name || 'General');
+        const itemTypeLabel = escapeHtml(it.itemType || '');
+        const itemUnit = escapeHtml(it.unit || '');
+        const itemBarcode = escapeHtml(barcodeCode || '');
 
         return `
           <tr>
             <td style="text-align: center;">
-              <input type="checkbox" class="item-chk" value="${it._id}" style="cursor: pointer; width: 16px; height: 16px;">
+              <input type="checkbox" class="item-chk" value="${itemId}" style="cursor: pointer; width: 16px; height: 16px;">
             </td>
             <td>
-              <a href="#/items/${it._id}" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${it.itemCode}</a>
+              <a href="#/items/${itemId}" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${itemCode}</a>
             </td>
             <td>
-              <div style="font-weight: 600; color: var(--text-primary);">${it.name}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">${it.brand || ''} ${it.model || ''}</div>
+              <div style="font-weight: 600; color: var(--text-primary);">${itemName}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${itemBrand} ${itemModel}</div>
             </td>
-            <td><span class="badge badge-secondary">${it.categoryId?.name || 'General'}</span></td>
-            <td><span class="badge badge-info">${it.itemType}</span></td>
-            <td style="font-family: var(--font-mono);">${it.unit}</td>
+            <td><span class="badge badge-secondary">${itemCategory}</span></td>
+            <td><span class="badge badge-info">${itemTypeLabel}</span></td>
+            <td style="font-family: var(--font-mono);">${itemUnit}</td>
             <td>
-              <a href="#/items/labels?ids=${it._id}" class="barcode-link" title="Click to view & print label for ${it.name}">
+              <a href="#/items/labels?ids=${itemId}" class="barcode-link" title="Click to view & print label for ${itemName}">
                 <span>🔲</span>
-                <span>${barcodeCode}</span>
+                <span>${itemBarcode}</span>
               </a>
             </td>
             <td style="font-weight: 700; color: var(--success);">${formatMoney(it.unitPrice)}</td>
             <td>
               <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
-                <button class="btn btn-sm btn-outline btn-receive-row" data-id="${it._id}" data-name="${it.name}" data-price="${it.unitPrice}" data-unit="${it.unit}" title="تحديث المخزون / استلام مواد بالمستودع">
+                <button class="btn btn-sm btn-outline btn-receive-row" data-id="${itemId}" data-name="${itemName}" data-price="${Number(it.unitPrice) || 0}" data-unit="${itemUnit}" title="تحديث المخزون / استلام مواد بالمستودع">
                   <span>📥 + مخزون</span>
                 </button>
-                <a href="#/items/labels?ids=${it._id}" class="btn btn-sm btn-outline" title="Print Label">
+                <a href="#/items/labels?ids=${itemId}" class="btn btn-sm btn-outline" title="Print Label">
                   <span>🖨️</span>
                 </a>
-                <a href="#/items/${it._id}" class="btn btn-sm btn-outline">
+                <a href="#/items/${itemId}" class="btn btn-sm btn-outline">
                   <span data-i18n="btn_view_history">التفاصيل</span> &rarr;
                 </a>
+                ${canEditItems ? `
+                  <button class="btn btn-sm btn-outline btn-edit-item" data-id="${itemId}" title="تعديل بيانات المادة" style="color: var(--primary); border-color: rgba(59, 130, 246, 0.4);">
+                    <span>✏️ تعديل</span>
+                  </button>
+                ` : ''}
                 ${isAdmin ? `
-                  <button class="btn btn-sm btn-outline btn-delete-item" data-id="${it._id}" data-name="${it.name}" title="حذف المادة (للأدمن فقط)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+                  <button class="btn btn-sm btn-outline btn-delete-item" data-id="${itemId}" data-name="${itemName}" title="حذف المادة (للأدمن فقط)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
                     <span>🗑️</span>
                   </button>
                 ` : ''}
@@ -189,11 +232,18 @@ export async function renderItems(container) {
         });
       });
 
+      // Bind row edit buttons (ADMIN and WAREHOUSE_MANAGER)
+      tbody.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          openEditItemModal(btn.getAttribute('data-id'), loadItems);
+        });
+      });
+
       // Bind row delete buttons (Admin only)
       tbody.querySelectorAll('.btn-delete-item').forEach(btn => {
         btn.addEventListener('click', () => {
           const itemId = btn.getAttribute('data-id');
-          const itemName = btn.getAttribute('data-name');
+          const itemName = escapeHtml(btn.getAttribute('data-name') || '');
           showModal({
             title: '⚠️ تأكيد حذف المادة',
             content: `
@@ -283,7 +333,7 @@ export async function renderItems(container) {
               </button>
             </div>
             <select id="inp-item-cat" class="form-select" required>
-              ${categories.map(c => `<option value="${c._id}">${c.name}</option>`).join('')}
+              ${categories.map(c => `<option value="${escapeHtml(c._id || '')}">${escapeHtml(c.name || '')}</option>`).join('')}
             </select>
 
             <!-- Inline New Category Box -->
@@ -344,7 +394,7 @@ export async function renderItems(container) {
             <div class="form-group" style="margin-bottom: 0.5rem;">
               <label class="form-label">المستودع الوجهة (المحل أو المخزن)</label>
               <select id="inp-item-target-wh" class="form-select">
-                ${warehouses.map(w => `<option value="${w._id}">${w.name} (${w.code})</option>`).join('')}
+                ${warehouses.map(w => `<option value="${escapeHtml(w._id || '')}">${escapeHtml(w.name || '')} (${escapeHtml(w.code || '')})</option>`).join('')}
               </select>
             </div>
           </div>
@@ -376,7 +426,6 @@ export async function renderItems(container) {
               📷 التقاط بالكاميرا
               <input type="file" id="inp-item-image-camera" accept="image/jpeg,image/png,image/webp" capture="environment" style="display: none;">
             </label>
-            <input type="hidden" id="inp-item-image-url">
           </div>
           <div id="item-image-preview-box" style="display: none; margin-top: 0.5rem; text-align: center;">
             <img id="item-image-preview" src="" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: cover;">
@@ -412,60 +461,71 @@ export async function renderItems(container) {
         const minimumStock = minStockVal ? parseFloat(minStockVal) : undefined;
         const brand = document.getElementById('inp-item-brand').value.trim();
         const barcode = document.getElementById('inp-item-barcode').value.trim() || undefined;
-        let imageUrl = document.getElementById('inp-item-image-url').value.trim() || undefined;
-
         if (!name || !categoryId || !unit || isNaN(unitPrice)) {
           showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح', 'error');
           return false;
         }
 
-        // Upload file to server if selected (from gallery or camera)
         const fileInput = document.getElementById('inp-item-image-file');
         const cameraInput = document.getElementById('inp-item-image-camera');
         const selectedFile = (fileInput && fileInput.files && fileInput.files[0])
           || (cameraInput && cameraInput.files && cameraInput.files[0]);
-
-        if (selectedFile) {
-          try {
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            const uploadRes = await api.post('/items/upload-image', formData);
-            if (uploadRes.success && uploadRes.data?.url) {
-              imageUrl = uploadRes.data.url;
-            }
-          } catch (uploadErr) {
-            showToast('فشل رفع الصورة: ' + (uploadErr.message || 'خطأ غير معروف'), 'error');
-            return false;
-          }
+        const imageValidationError = getItemImageValidationError(selectedFile);
+        if (imageValidationError) {
+          showToast(imageValidationError, 'error');
+          return false;
         }
 
         try {
-          await api.post('/items', {
+          // Create the item exactly once, then attach its image through the
+          // dedicated atomic endpoint. A later image failure must not repeat
+          // this POST and create a duplicate item.
+          const createPayload = {
             name,
             categoryId,
             itemType,
             unit,
             unitPrice,
-            imageUrl,
             initialQuantity: initialQty > 0 ? initialQty : undefined,
             warehouseId: initialQty > 0 ? warehouseId : undefined,
             referenceDocNumber: referenceDocNumber || undefined,
             minimumStock,
             brand,
             barcode,
-          }, {
-            headers: { 'Idempotency-Key': itemFormKey }
+          };
+          const createRes = await api.request('/items', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': itemFormKey },
+            body: JSON.stringify(createPayload),
           });
 
+          if (selectedFile) {
+            const createdItemId = createRes.data?._id;
+            try {
+              if (!createdItemId) throw new Error('لم يرجع الخادم معرّف المادة الجديدة');
+              const formData = new FormData();
+              formData.append('file', selectedFile);
+              const imageRes = await api.request(`/items/${encodeURIComponent(createdItemId)}/image`, {
+                method: 'PUT',
+                body: formData,
+              });
+              if (!imageRes?.success) throw new Error('تعذر تثبيت الصورة على المادة');
+            } catch (imageError) {
+              showToast(`تم حفظ المادة بنجاح، لكن تعذر رفع الصورة. يمكنك إضافتها من زر التعديل: ${getItemImageRequestErrorMessage(imageError)}`, 'warning');
+              loadItems();
+              return true;
+            }
+          }
+
           if (initialQty > 0) {
-            showToast(`تمت إضافة المادة "${name}" وتوجيه ${initialQty} ${unit} بنجاح إلى المستودع!`, 'success');
+            showToast(`تمت إضافة المادة "${escapeHtml(name)}" وتوجيه ${initialQty} ${escapeHtml(unit)} بنجاح إلى المستودع!`, 'success');
           } else {
-            showToast(`تمت إضافة المادة "${name}" بنجاح!`, 'success');
+            showToast(`تمت إضافة المادة "${escapeHtml(name)}" بنجاح!`, 'success');
           }
           loadItems();
           return true;
         } catch (err) {
-          showToast(err.message, 'error');
+          showToast(escapeHtml(err.message || 'تعذر حفظ المادة'), 'error');
           return false;
         }
       }
@@ -519,10 +579,18 @@ export async function renderItems(container) {
     });
 
     // Image preview handlers for gallery and camera inputs
-    function handleImagePreview(file) {
+    function handleImagePreview(file, sourceInput) {
       const previewBox = modal.querySelector('#item-image-preview-box');
       const previewImg = modal.querySelector('#item-image-preview');
       if (file && previewBox && previewImg) {
+        const validationError = getItemImageValidationError(file);
+        if (validationError) {
+          if (sourceInput) sourceInput.value = '';
+          previewImg.removeAttribute('src');
+          previewBox.style.display = 'none';
+          showToast(validationError, 'error');
+          return;
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
           previewImg.src = e.target.result;
@@ -539,7 +607,7 @@ export async function renderItems(container) {
       if (galleryInput.files[0]) {
         // Clear camera input so only one is active
         if (cameraInput) cameraInput.value = '';
-        handleImagePreview(galleryInput.files[0]);
+        handleImagePreview(galleryInput.files[0], galleryInput);
       }
     });
 
@@ -547,7 +615,7 @@ export async function renderItems(container) {
       if (cameraInput.files[0]) {
         // Clear gallery input so only one is active
         if (galleryInput) galleryInput.value = '';
-        handleImagePreview(cameraInput.files[0]);
+        handleImagePreview(cameraInput.files[0], cameraInput);
       }
     });
 
@@ -556,8 +624,6 @@ export async function renderItems(container) {
       if (cameraInput) cameraInput.value = '';
       const previewBox = modal.querySelector('#item-image-preview-box');
       if (previewBox) previewBox.style.display = 'none';
-      const hiddenUrl = modal.querySelector('#inp-item-image-url');
-      if (hiddenUrl) hiddenUrl.value = '';
     });
 
     // Smart Autocomplete from CSV & Database for Item Name (§13)
@@ -570,16 +636,6 @@ export async function renderItems(container) {
     let debounceTimer = null;
     let selectedIndex = -1;
     let currentSuggestions = [];
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
 
     function escapeRegExp(str) {
       return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -898,3 +954,324 @@ export async function renderItems(container) {
   loadItems();
 }
 
+/**
+ * Opens the complete item editor for roles allowed by PATCH /api/items/:id.
+ * Image metadata is always omitted from PATCH. Replacements and removals use
+ * the dedicated atomic image endpoints after the item data is saved.
+ */
+export async function openEditItemModal(itemId, onSuccess) {
+  const currentUser = api.getCurrentUser();
+  const isAdmin = currentUser?.role === 'ADMIN';
+  if (!ITEM_EDITOR_ROLES.has(currentUser?.role)) {
+    showToast('ليس لديك صلاحية تعديل بيانات المواد', 'error');
+    return;
+  }
+
+  if (!itemId) {
+    showToast('تعذر تحديد المادة المطلوب تعديلها', 'error');
+    return;
+  }
+
+  try {
+    const encodedItemId = encodeURIComponent(itemId);
+    const [itemRes, categoryRes] = await Promise.all([
+      api.get(`/items/${encodedItemId}`),
+      api.get('/categories'),
+    ]);
+
+    const item = itemRes.data;
+    const categories = categoryRes.data || [];
+    if (!item) throw new Error('تعذر تحميل بيانات المادة');
+
+    const units = [
+      { value: 'PIECE', label: 'PIECE (قطعة / pcs)' },
+      { value: 'BAG', label: 'BAG (كيس / sac)' },
+      { value: 'KG', label: 'KG (كيلوغرام)' },
+      { value: 'TON', label: 'TON (طن)' },
+      { value: 'METER', label: 'METER (متر)' },
+      { value: 'CM', label: 'CM (سنتيمتر)' },
+      { value: 'SQM', label: 'SQM (متر مربع m²)' },
+      { value: 'CBM', label: 'CBM (متر مكعب m³)' },
+      { value: 'LITER', label: 'LITER (لتر)' },
+      { value: 'BOX', label: 'BOX (علبة / boîte)' },
+      { value: 'ROLL', label: 'ROLL (لفة / rouleau)' },
+    ];
+    const itemTypes = [
+      { value: 'MATERIAL', label: 'MATERIAL (مادة)' },
+      { value: 'EQUIPMENT', label: 'EQUIPMENT (معدات)' },
+      { value: 'TOOL', label: 'TOOL (أداة)' },
+      { value: 'OTHER', label: 'OTHER (أخرى)' },
+    ];
+
+    const currentCategoryId = String(item.categoryId?._id || item.categoryId || '');
+    const primaryBarcode = (item.barcodes || []).find(barcode => barcode.isPrimary)
+      || (item.barcodes || [])[0];
+    const originalImageUrl = typeof item.imageUrl === 'string' ? item.imageUrl.trim() : '';
+    const formattedImageUrl = formatImageUrl(originalImageUrl);
+    const hasOriginalImage = Boolean(originalImageUrl);
+
+    const content = `
+      <form id="form-edit-item" novalidate>
+        <div style="margin-bottom: 0.9rem; padding: 0.65rem 0.85rem; background: var(--bg-surface-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <div>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">كود المادة:</span>
+            <strong style="font-family: var(--font-mono); color: var(--primary); margin-inline-start: 0.35rem;">${escapeHtml(item.itemCode || '')}</strong>
+          </div>
+          <span class="badge badge-info">${escapeHtml(item.itemType || 'MATERIAL')}</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inp-edit-item-name">اسم المادة / Item Name *</label>
+          <input type="text" id="inp-edit-item-name" class="form-control" value="${escapeHtml(item.name || '')}" maxlength="250" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-cat">الفئة / الصنف *</label>
+            <select id="inp-edit-item-cat" class="form-select" required>
+              ${categories.map(category => {
+                const categoryId = String(category._id || '');
+                return `<option value="${escapeHtml(categoryId)}" ${categoryId === currentCategoryId ? 'selected' : ''}>${escapeHtml(category.name || '')}</option>`;
+              }).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-type">نوع العنصر / Item Type *</label>
+            <select id="inp-edit-item-type" class="form-select" required>
+              ${itemTypes.map(type => `<option value="${type.value}" ${item.itemType === type.value ? 'selected' : ''}>${type.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-unit">وحدة القياس / Unit *</label>
+            <select id="inp-edit-item-unit" class="form-select" required>
+              ${units.map(unit => `<option value="${unit.value}" ${item.unit === unit.value ? 'selected' : ''}>${unit.label}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-unit-price">السعر الإفرادي (د.ج) *</label>
+            <input type="number" step="0.01" min="0" id="inp-edit-item-unit-price" class="form-control" value="${Number(item.unitPrice) || 0}" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-min-stock">حد تنبيه انخفاض المخزون</label>
+            <input type="number" step="1" min="0" id="inp-edit-item-min-stock" class="form-control" value="${item.minimumStock != null ? Number(item.minimumStock) : ''}">
+          </div>
+          ${isAdmin ? `
+            <div class="form-group">
+              <label class="form-label" for="inp-edit-item-active">حالة المادة</label>
+              <select id="inp-edit-item-active" class="form-select">
+                <option value="true" ${item.isActive !== false ? 'selected' : ''}>نشط / Active</option>
+                <option value="false" ${item.isActive === false ? 'selected' : ''}>معطل / Inactive</option>
+              </select>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-brand">الماركة / المصنّع</label>
+            <input type="text" id="inp-edit-item-brand" class="form-control" value="${escapeHtml(item.brand || '')}" maxlength="160">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="inp-edit-item-model">الموديل / المواصفة</label>
+            <input type="text" id="inp-edit-item-model" class="form-control" value="${escapeHtml(item.model || '')}" maxlength="160">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inp-edit-item-barcode">الباركود الأساسي</label>
+          <input type="text" id="inp-edit-item-barcode" class="form-control" value="${escapeHtml(primaryBarcode?.code || '')}" readonly>
+          <small style="display: block; margin-top: 0.3rem; color: var(--text-muted);">تتم إدارة الباركودات بصورة مستقلة من صفحة تفاصيل المادة.</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inp-edit-item-desc">الوصف وملاحظات إضافية</label>
+          <textarea id="inp-edit-item-desc" class="form-control" rows="3" maxlength="2000">${escapeHtml(item.description || '')}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">صورة المادة / Item Image</label>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
+              🖼️ اختيار صورة جديدة
+              <input type="file" id="inp-edit-image-file" accept="image/jpeg,image/png,image/webp" style="display: none;">
+            </label>
+            <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
+              📷 التقاط بالكاميرا
+              <input type="file" id="inp-edit-image-camera" accept="image/jpeg,image/png,image/webp" capture="environment" style="display: none;">
+            </label>
+            <span id="edit-image-file-name" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+          </div>
+          <div id="edit-image-preview-box" style="${hasOriginalImage ? '' : 'display: none;'} margin-top: 0.65rem; padding: 0.65rem; text-align: center; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+            <img id="edit-image-preview" src="${escapeHtml(formattedImageUrl)}" alt="${escapeHtml(item.name || 'Preview')}" style="${formattedImageUrl ? '' : 'display: none;'} max-height: 180px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: contain;">
+            <div id="edit-image-preview-status" style="${formattedImageUrl ? 'display: none;' : ''} color: var(--warning); font-size: 0.78rem; padding: 0.5rem;">تعذر عرض الصورة الحالية، لكن سيبقى رابطها محفوظاً ما لم تختر إزالتها أو استبدالها.</div>
+            <div style="margin-top: 0.45rem;">
+              <button type="button" id="btn-edit-remove-image" class="btn btn-sm btn-outline" style="font-size: 0.75rem; color: var(--danger);" ${hasOriginalImage ? '' : 'disabled'}>✕ إزالة الصورة</button>
+            </div>
+          </div>
+          <small style="display: block; margin-top: 0.35rem; color: var(--text-muted);">JPEG أو PNG أو WebP، بحد أقصى 5 MB.</small>
+        </div>
+      </form>
+    `;
+
+    let imageRemoved = false;
+    const modal = showModal({
+      title: `✏️ تعديل بيانات المادة: ${escapeHtml(item.name || '')}`,
+      content,
+      confirmText: 'حفظ التعديلات',
+      onConfirm: async (modalElement) => {
+        const root = modalElement || modal;
+        const name = (root.querySelector('#inp-edit-item-name')?.value || '').trim();
+        const categoryId = root.querySelector('#inp-edit-item-cat')?.value || '';
+        const itemType = root.querySelector('#inp-edit-item-type')?.value || '';
+        const unit = root.querySelector('#inp-edit-item-unit')?.value || '';
+        const unitPrice = Number(root.querySelector('#inp-edit-item-unit-price')?.value);
+        const minimumStockRaw = (root.querySelector('#inp-edit-item-min-stock')?.value || '').trim();
+        const minimumStock = minimumStockRaw === '' ? null : Number(minimumStockRaw);
+
+        if (!name || !categoryId || !itemType || !unit || !Number.isFinite(unitPrice) || unitPrice < 0) {
+          showToast('يرجى ملء الحقول المطلوبة وإدخال سعر صالح', 'error');
+          return false;
+        }
+        if (minimumStock !== null && (!Number.isFinite(minimumStock) || minimumStock < 0)) {
+          showToast('حد انخفاض المخزون يجب أن يكون رقماً موجباً أو صفراً', 'error');
+          return false;
+        }
+
+        const payload = {
+          name,
+          categoryId,
+          itemType,
+          unit,
+          unitPrice,
+          minimumStock,
+          brand: (root.querySelector('#inp-edit-item-brand')?.value || '').trim(),
+          model: (root.querySelector('#inp-edit-item-model')?.value || '').trim(),
+          description: (root.querySelector('#inp-edit-item-desc')?.value || '').trim(),
+        };
+        if (isAdmin) {
+          payload.isActive = root.querySelector('#inp-edit-item-active')?.value === 'true';
+        }
+
+        const fileInput = root.querySelector('#inp-edit-image-file');
+        const cameraInput = root.querySelector('#inp-edit-image-camera');
+        const selectedFile = fileInput?.files?.[0] || cameraInput?.files?.[0];
+        const imageValidationError = getItemImageValidationError(selectedFile);
+        if (imageValidationError) {
+          showToast(imageValidationError, 'error');
+          return false;
+        }
+
+        let updateRes;
+        try {
+          updateRes = await api.patch(`/items/${encodedItemId}`, payload);
+        } catch (error) {
+          showToast(escapeHtml(error.message || 'فشل تعديل المادة'), 'error');
+          return false;
+        }
+
+        try {
+          if (selectedFile) {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            const imageRes = await api.request(`/items/${encodedItemId}/image`, {
+              method: 'PUT',
+              body: formData,
+            });
+            if (!imageRes?.success) throw new Error('تعذر تثبيت الصورة الجديدة');
+          } else if (imageRemoved) {
+            const imageRes = await api.delete(`/items/${encodedItemId}/image`);
+            if (!imageRes?.success) throw new Error('تعذر حذف الصورة الحالية');
+          }
+        } catch (imageError) {
+          showToast(`تم حفظ بيانات المادة، لكن تعذر ${imageRemoved ? 'حذف الصورة' : 'تحديث الصورة'}. أعد فتح التعديل وحاول مجدداً: ${getItemImageRequestErrorMessage(imageError)}`, 'warning');
+          if (typeof onSuccess === 'function') await onSuccess(updateRes.data);
+          return true;
+        }
+
+        showToast(`تم تعديل المادة "${escapeHtml(name)}" بنجاح`, 'success');
+        if (typeof onSuccess === 'function') await onSuccess(updateRes.data);
+        return true;
+      },
+    });
+
+    const fileInput = modal.querySelector('#inp-edit-image-file');
+    const cameraInput = modal.querySelector('#inp-edit-image-camera');
+    const previewBox = modal.querySelector('#edit-image-preview-box');
+    const previewImage = modal.querySelector('#edit-image-preview');
+    const previewStatus = modal.querySelector('#edit-image-preview-status');
+    const removeButton = modal.querySelector('#btn-edit-remove-image');
+    const fileName = modal.querySelector('#edit-image-file-name');
+    const showPreviewFailure = () => {
+      if (previewImage) previewImage.style.display = 'none';
+      if (previewStatus) {
+        previewStatus.textContent = 'تعذر عرض الصورة الحالية، لكن سيبقى رابطها محفوظاً ما لم تختر إزالتها أو استبدالها.';
+        previewStatus.style.display = 'block';
+      }
+    };
+
+    previewImage?.addEventListener('error', showPreviewFailure);
+
+    const previewSelectedFile = (selectedFile, sourceInput) => {
+      if (!selectedFile) return;
+      const validationError = getItemImageValidationError(selectedFile);
+      if (validationError) {
+        sourceInput.value = '';
+        showToast(validationError, 'error');
+        return;
+      }
+
+      imageRemoved = false;
+      if (previewBox) previewBox.style.display = 'block';
+      if (removeButton) removeButton.disabled = false;
+      if (fileName) fileName.textContent = `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
+
+      const reader = new FileReader();
+      reader.addEventListener('load', event => {
+        if (previewImage) {
+          previewImage.src = event.target?.result || '';
+          previewImage.style.display = 'inline-block';
+        }
+        if (previewStatus) previewStatus.style.display = 'none';
+      });
+      reader.addEventListener('error', () => {
+        showToast('تعذر قراءة ملف الصورة المحدد', 'error');
+      });
+      reader.readAsDataURL(selectedFile);
+    };
+
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files?.[0]) {
+        if (cameraInput) cameraInput.value = '';
+        previewSelectedFile(fileInput.files[0], fileInput);
+      }
+    });
+    cameraInput?.addEventListener('change', () => {
+      if (cameraInput.files?.[0]) {
+        if (fileInput) fileInput.value = '';
+        previewSelectedFile(cameraInput.files[0], cameraInput);
+      }
+    });
+
+    removeButton?.addEventListener('click', () => {
+      imageRemoved = true;
+      if (fileInput) fileInput.value = '';
+      if (cameraInput) cameraInput.value = '';
+      if (previewImage) {
+        previewImage.removeAttribute('src');
+        previewImage.style.display = 'none';
+      }
+      if (previewStatus) previewStatus.style.display = 'none';
+      if (previewBox) previewBox.style.display = 'none';
+      if (fileName) fileName.textContent = 'سيتم حذف الصورة عند حفظ التعديلات.';
+      removeButton.disabled = true;
+    });
+  } catch (error) {
+    showToast(escapeHtml(error.message || 'تعذر تحميل بيانات المادة'), 'error');
+  }
+}

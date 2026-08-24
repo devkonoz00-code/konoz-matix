@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const Item = require('../models/Item');
 const Category = require('../models/Category');
 const Barcode = require('../models/Barcode');
@@ -7,6 +8,8 @@ const { AppError } = require('../middleware/errorHandler');
 const auditService = require('./auditService');
 const { getNextSequence } = require('../utils/sequence');
 const { escapeRegex } = require('../utils/sanitizeRegex');
+const cloudinaryService = require('./cloudinaryService');
+const logger = require('../utils/logger');
 
 const Warehouse = require('../models/Warehouse');
 const Project = require('../models/Project');
@@ -15,6 +18,72 @@ const stockService = require('./stockService');
 
 let csvArticlesCache = null;
 let csvArticlesLastLoaded = 0;
+
+function hasOwn(target, key) {
+  return Object.prototype.hasOwnProperty.call(target || {}, key);
+}
+
+function assertNoDirectImageMutation(data) {
+  if (hasOwn(data, 'imageUrl') || hasOwn(data, 'imagePublicId')) {
+    throw new AppError(
+      'Use the dedicated product image endpoint to add, replace, or remove an image.',
+      400,
+      'IMAGE_ENDPOINT_REQUIRED'
+    );
+  }
+}
+
+function assertCloudinaryConfigured() {
+  if (cloudinaryService.isCloudinaryConfigured()) return;
+  const status = cloudinaryService.getConfigurationStatus();
+  throw new AppError(
+    status.message || 'Product image storage is not configured.',
+    503,
+    status.code || 'CLOUDINARY_NOT_CONFIGURED'
+  );
+}
+
+async function cleanupManagedImage(publicId, context = {}) {
+  if (!cloudinaryService.isManagedItemPublicId(publicId)) return;
+  try {
+    await cloudinaryService.deleteItemImage(publicId);
+  } catch (error) {
+    logger.warn('Failed to clean up a managed product image', {
+      itemId: context.itemId,
+      phase: context.phase,
+      providerStatus: error.http_code || error.statusCode || null,
+    });
+  }
+}
+
+async function uploadManagedItemImage(file) {
+  assertCloudinaryConfigured();
+
+  let result;
+  try {
+    result = await cloudinaryService.uploadBuffer(file.buffer, {
+      folder: cloudinaryService.ITEM_IMAGE_FOLDER,
+      public_id: crypto.randomUUID(),
+      resource_type: 'image',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      overwrite: false,
+      unique_filename: false,
+    });
+  } catch (error) {
+    if (error.statusCode === 503) {
+      throw new AppError(error.message, 503, error.code || 'CLOUDINARY_NOT_CONFIGURED');
+    }
+    throw new AppError('Failed to upload product image to Cloudinary.', 502, 'STORAGE_UPLOAD_FAILED');
+  }
+
+  const reference = cloudinaryService.parseItemImageReference(result?.secure_url, result?.public_id);
+  if (!reference) {
+    await cleanupManagedImage(result?.public_id, { phase: 'invalid_upload_response' });
+    throw new AppError('Cloudinary returned an invalid product image reference.', 502, 'INVALID_STORAGE_RESPONSE');
+  }
+
+  return reference;
+}
 
 function loadCsvArticles() {
   const possiblePaths = [
@@ -183,6 +252,7 @@ const itemService = {
   },
 
   async create(data, req) {
+    assertNoDirectImageMutation(data);
     const itemCode = data.itemCode || await getNextSequence('item', 'ITM');
     const unitPrice = data.unitPrice !== undefined ? data.unitPrice : (data.currentCostPrice || data.purchasePrice || 0);
 
@@ -196,7 +266,6 @@ const itemService = {
       unit: data.unit,
       unitPrice,
       minimumStock: data.minimumStock,
-      imageUrl: data.imageUrl,
       itemType: data.itemType,
     });
 
@@ -246,6 +315,7 @@ const itemService = {
   },
 
   async update(id, data, req) {
+    assertNoDirectImageMutation(data);
     const item = await Item.findById(id);
     if (!item) throw new AppError('Item not found', 404, 'NOT_FOUND');
 
@@ -253,7 +323,7 @@ const itemService = {
 
     const allowedFields = [
       'name', 'description', 'categoryId', 'brand', 'model', 'unit',
-      'unitPrice', 'minimumStock', 'imageUrl', 'itemType', 'isActive',
+      'unitPrice', 'minimumStock', 'itemType',
     ];
 
     for (const field of allowedFields) {
@@ -262,6 +332,13 @@ const itemService = {
     // Handle fallback if frontend sent currentCostPrice
     if (data.unitPrice === undefined && data.currentCostPrice !== undefined) {
       item.unitPrice = data.currentCostPrice;
+    }
+
+    if (data.isActive !== undefined) {
+      if (req.user?.role !== 'ADMIN') {
+        throw new AppError('Only administrators can change item activation status.', 403, 'FORBIDDEN');
+      }
+      item.isActive = Boolean(data.isActive);
     }
 
     await item.save();
@@ -277,6 +354,126 @@ const itemService = {
     });
 
     return this.getById(item._id);
+  },
+
+  async replaceImage(id, file, req) {
+    const item = await Item.findById(id).select('+imagePublicId');
+    if (!item) throw new AppError('Item not found', 404, 'NOT_FOUND');
+
+    const before = item.toJSON();
+    const expectedVersion = item.__v;
+    const oldReference = item.imagePublicId
+      ? cloudinaryService.parseItemImageReference(item.imageUrl, item.imagePublicId)
+      : null;
+    const newReference = await uploadManagedItemImage(file);
+
+    let updatedItem;
+    try {
+      updatedItem = await Item.findOneAndUpdate(
+        { _id: item._id, __v: expectedVersion },
+        {
+          $set: {
+            imageUrl: newReference.url,
+            imagePublicId: newReference.publicId,
+          },
+          $inc: { __v: 1 },
+        },
+        { new: true, runValidators: true }
+      ).select('+imagePublicId');
+    } catch (error) {
+      await cleanupManagedImage(newReference.publicId, { itemId: item._id, phase: 'database_save_failed' });
+      throw error;
+    }
+
+    if (!updatedItem) {
+      await cleanupManagedImage(newReference.publicId, { itemId: item._id, phase: 'version_conflict' });
+      throw new AppError(
+        'The item changed while its image was being updated. Please retry.',
+        409,
+        'ITEM_IMAGE_CONFLICT'
+      );
+    }
+
+    try {
+      await auditService.log({
+        userId: req.user._id,
+        action: 'UPDATE',
+        entityType: 'Item',
+        entityId: updatedItem._id,
+        before,
+        after: updatedItem.toJSON(),
+        req,
+      });
+    } finally {
+      // The database already points at the new image. Always attempt to clean
+      // the old resource, even if the audit backend is temporarily unavailable.
+      if (oldReference && oldReference.publicId !== newReference.publicId) {
+        await cleanupManagedImage(oldReference.publicId, { itemId: item._id, phase: 'replaced_old_image' });
+      }
+    }
+
+    return this.getById(updatedItem._id);
+  },
+
+  async removeImage(id, req) {
+    const item = await Item.findById(id).select('+imagePublicId');
+    if (!item) throw new AppError('Item not found', 404, 'NOT_FOUND');
+
+    if (!item.imageUrl && !item.imagePublicId) {
+      return this.getById(item._id);
+    }
+
+    const before = item.toJSON();
+    const expectedVersion = item.__v;
+    const oldReference = item.imagePublicId
+      ? cloudinaryService.parseItemImageReference(item.imageUrl, item.imagePublicId)
+      : null;
+
+    const hasCloudinaryDeliveryUrl = /^https?:\/\/res\.cloudinary\.com\//i.test(item.imageUrl || '');
+    if (
+      hasCloudinaryDeliveryUrl &&
+      item.imagePublicId &&
+      cloudinaryService.isManagedItemPublicId(item.imagePublicId)
+    ) {
+      assertCloudinaryConfigured();
+    }
+
+    const updatedItem = await Item.findOneAndUpdate(
+      { _id: item._id, __v: expectedVersion },
+      {
+        $set: { imageUrl: null, imagePublicId: null },
+        $inc: { __v: 1 },
+      },
+      { new: true, runValidators: true }
+    ).select('+imagePublicId');
+
+    if (!updatedItem) {
+      throw new AppError(
+        'The item changed while its image was being removed. Please retry.',
+        409,
+        'ITEM_IMAGE_CONFLICT'
+      );
+    }
+
+    try {
+      await auditService.log({
+        userId: req.user._id,
+        action: 'UPDATE',
+        entityType: 'Item',
+        entityId: updatedItem._id,
+        before,
+        after: updatedItem.toJSON(),
+        req,
+      });
+    } finally {
+      // The reference is already cleared in MongoDB, so leaving the managed
+      // Cloudinary asset behind would only create an orphan.
+      if (oldReference) {
+        await cleanupManagedImage(oldReference.publicId, { itemId: item._id, phase: 'removed_old_image' });
+      }
+    }
+
+    return this.getById(updatedItem._id);
   },
 
   async delete(id, req) {
@@ -425,5 +622,3 @@ const itemService = {
 };
 
 module.exports = itemService;
-
-

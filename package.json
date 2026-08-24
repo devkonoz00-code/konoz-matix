@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
-    "setup": "node server/src/setup.js"
+    "setup": "node server/src/setup.js",
+    "test:cloudinary-images": "node server/test-cloudinary-images.js"
   },
   "keywords": [
     "material-tracking",

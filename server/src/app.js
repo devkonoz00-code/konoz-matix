@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const env = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
 const { apiLimiter, exportLimiter } = require('./middleware/rateLimiter');
@@ -80,8 +81,8 @@ app.use(cors({
     }
     return callback(new Error('Blocked by CORS policy: Origin not allowed.'));
   },
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Idempotency-Key'],
   credentials: true,
   maxAge: 86400,
 }));
@@ -98,12 +99,23 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // 5. NoSQL Injection Query/Body Sanitization
 app.use(sanitize);
 
-// 6. Serve local uploads fallback and static frontend files with caching
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads'), {
-  dotfiles: 'ignore',
-  index: false,
-  maxAge: '1d',
-}));
+// 6. Keep legacy local image URLs readable. New product images are Cloudinary-only.
+const candidateUploadDirs = [
+  path.resolve(process.cwd(), 'uploads'),
+  path.resolve(__dirname, '../../uploads'),
+  path.resolve(__dirname, '../../../uploads'),
+  path.resolve(__dirname, '../uploads'),
+  path.resolve(process.cwd(), 'server/uploads'),
+];
+
+candidateUploadDirs.forEach(dirPath => {
+  try {
+    if (fs.existsSync(dirPath)) {
+      app.use('/uploads', express.static(dirPath, { dotfiles: 'ignore', index: false, maxAge: '1d' }));
+    }
+  } catch {}
+});
+
 app.use(express.static(path.join(__dirname, '../../client'), {
   maxAge: env.NODE_ENV === 'production' ? '1d' : '0',
   etag: true,

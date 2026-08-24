@@ -68,10 +68,13 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_AUTH_MAX=5
 RATE_LIMIT_API_MAX=120
 
-# Optional Cloudinary Storage
+# Required Cloudinary Storage for Product Images
+# Configure either CLOUDINARY_URL or all three explicit values below.
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+# Alternative: cloudinary://<api_key>:<api_secret>@<cloud_name>
+CLOUDINARY_URL=
 ```
 
 ---

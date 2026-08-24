@@ -46,6 +46,35 @@ export function escapeHtml(unsafeStr) {
     .replace(/'/g, '&#039;');
 }
 
+/**
+ * Normalizes stored image references for safe browser loading.
+ * Legacy Cloudinary URLs may be protocol-relative or use HTTP, while local
+ * uploads may be stored with or without a leading slash.
+ *
+ * @param {string} url - Raw image URL stored on the item
+ * @returns {string} A browser-loadable URL, or an empty string when invalid
+ */
+export function formatImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+
+  let clean = url.trim();
+  if (!clean || clean === 'undefined' || clean === 'null' || clean === '/' || clean === '[object Object]') {
+    return '';
+  }
+
+  if (clean.startsWith('http://')) {
+    clean = `https://${clean.slice(7)}`;
+  } else if (clean.startsWith('//')) {
+    clean = `https:${clean}`;
+  } else if (clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com')) {
+    clean = `https://${clean}`;
+  } else if (!clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:')) {
+    clean = clean.startsWith('/') ? clean : `/${clean}`;
+  }
+
+  return clean;
+}
+
 // ==========================================================================
 // UI Helpers (Toasts, Modals, Formatters)
 // ==========================================================================
@@ -98,14 +127,18 @@ export function showModal({ title, content, confirmText = 'Confirm', cancelText 
 
   document.body.appendChild(backdrop);
 
-  const close = () => backdrop.remove();
-  backdrop.querySelector('.modal-close-btn').addEventListener('click', close);
+  const closeBtn = backdrop.querySelector('.modal-close-btn');
+  let isSubmitting = false;
+  const close = () => {
+    if (isSubmitting) return;
+    backdrop.remove();
+  };
+  closeBtn.addEventListener('click', close);
   backdrop.querySelector('.modal-cancel-btn').addEventListener('click', close);
 
   if (onConfirm) {
     const confirmBtn = backdrop.querySelector('.modal-confirm-btn');
     const cancelBtn = backdrop.querySelector('.modal-cancel-btn');
-    let isSubmitting = false;
 
     confirmBtn?.addEventListener('click', async () => {
       if (isSubmitting) return;
@@ -113,6 +146,7 @@ export function showModal({ title, content, confirmText = 'Confirm', cancelText 
       isSubmitting = true;
       confirmBtn.disabled = true;
       if (cancelBtn) cancelBtn.disabled = true;
+      if (closeBtn) closeBtn.disabled = true;
       const originalHtml = confirmBtn.innerHTML;
       confirmBtn.innerHTML = `
         <span style="display: inline-flex; align-items: center; gap: 0.4rem;">
@@ -124,17 +158,20 @@ export function showModal({ title, content, confirmText = 'Confirm', cancelText 
       try {
         const result = await onConfirm(backdrop);
         if (result !== false) {
+          isSubmitting = false;
           close();
         } else {
           isSubmitting = false;
           confirmBtn.disabled = false;
           if (cancelBtn) cancelBtn.disabled = false;
+          if (closeBtn) closeBtn.disabled = false;
           confirmBtn.innerHTML = originalHtml;
         }
       } catch (err) {
         isSubmitting = false;
         confirmBtn.disabled = false;
         if (cancelBtn) cancelBtn.disabled = false;
+        if (closeBtn) closeBtn.disabled = false;
         confirmBtn.innerHTML = originalHtml;
         throw err;
       }
@@ -279,6 +316,19 @@ async function openNotificationsModal() {
 // ==========================================================================
 async function initApp() {
   await i18n.init();
+
+  // Refresh the cached user profile on every app start. The API authorizes
+  // requests from the live database user, so the UI must not keep using a
+  // stale role from a previous login after an administrator changes it.
+  if (api.getToken()) {
+    try {
+      const profile = await api.get('/auth/me');
+      if (profile?.data) api.setCurrentUser(profile.data);
+    } catch {
+      // Keep the last cached profile for offline rendering. Authentication
+      // failures are already handled centrally by the API client.
+    }
+  }
 
   // Register SPA Routes
   router.add('/login', renderLogin);
@@ -432,9 +482,18 @@ async function initApp() {
 
   // Register PWA Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./service-worker.js').catch((err) => {
-      console.warn('SW registration failed:', err);
+    let isReloadingForServiceWorker = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (isReloadingForServiceWorker) return;
+      isReloadingForServiceWorker = true;
+      window.location.reload();
     });
+
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(registration => registration.update())
+      .catch((err) => {
+        console.warn('SW registration failed:', err);
+      });
   }
 }
 

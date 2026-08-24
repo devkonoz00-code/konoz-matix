@@ -56,7 +56,7 @@ export function escapeHtml(unsafeStr) {
 export function formatImageUrl(url) {
   if (!url || typeof url !== 'string') return '';
   let clean = url.trim();
-  if (!clean) return '';
+  if (!clean || clean === 'undefined' || clean === 'null' || clean === '/' || clean === '[object Object]') return '';
 
   if (clean.startsWith('http://')) {
     clean = 'https://' + clean.slice(7);

@@ -1201,11 +1201,6 @@ export async function openEditItemModal(itemId, onSuccess) {
         const isActive = (modalEl || modal).querySelector('#inp-edit-item-active')?.value === 'true';
         let imageUrl = ((modalEl || modal).querySelector('#inp-edit-image-url')?.value || '').trim();
 
-        // If no new image URL was typed but item already has an image and it wasn't removed, retain it
-        if (!imageUrl && item.imageUrl && (modalEl || modal).querySelector('#edit-image-preview-box')?.style.display !== 'none') {
-          imageUrl = item.imageUrl;
-        }
-
         if (!name || !categoryId || !unit || isNaN(unitPrice) || unitPrice < 0) {
           showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح وبسعر صالح', 'error');
           return false;
@@ -1230,6 +1225,11 @@ export async function openEditItemModal(itemId, onSuccess) {
           }
         }
 
+        const isImageRemoved = (modalEl || modal).querySelector('#edit-image-preview-box')?.style.display === 'none' && !selectedFile;
+        if (!imageUrl && !isImageRemoved && item.imageUrl) {
+          imageUrl = item.imageUrl;
+        }
+
         try {
           await api.patch(`/items/${itemId}`, {
             name,
@@ -1242,7 +1242,7 @@ export async function openEditItemModal(itemId, onSuccess) {
             model,
             barcode: barcode || undefined,
             description,
-            imageUrl: imageUrl || '',
+            imageUrl: isImageRemoved ? '' : (imageUrl || undefined),
             isActive,
           });
 

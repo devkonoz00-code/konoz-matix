@@ -269,7 +269,16 @@ const itemService = {
         ? null
         : Number(data.minimumStock);
     }
-    if (data.imageUrl !== undefined) item.imageUrl = data.imageUrl;
+    if (data.imageUrl !== undefined) {
+      if (data.imageUrl === '' || data.imageUrl === null) {
+        item.imageUrl = null;
+      } else {
+        const cleanImg = String(data.imageUrl).trim();
+        if (cleanImg && cleanImg !== 'undefined' && cleanImg !== 'null') {
+          item.imageUrl = cleanImg;
+        }
+      }
+    }
     if (data.itemType !== undefined) item.itemType = data.itemType;
     if (data.isActive !== undefined) item.isActive = Boolean(data.isActive);
 

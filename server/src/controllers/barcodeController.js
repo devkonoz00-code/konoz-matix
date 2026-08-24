@@ -17,12 +17,18 @@ const barcodeController = {
 
       let item = null;
 
-      if (barcode && barcode.itemId) {
+      if (barcode && barcode.itemId && barcode.itemId.name) {
         item = barcode.itemId;
+      } else if (barcode && barcode.itemId) {
+        item = await Item.findById(barcode.itemId).populate('categoryId', 'name');
       } else {
         // Fallback: search by itemCode directly
         item = await Item.findOne({ itemCode: code, isActive: true })
           .populate('categoryId', 'name');
+
+        if (!item && require('mongoose').Types.ObjectId.isValid(code)) {
+          item = await Item.findById(code).populate('categoryId', 'name');
+        }
 
         if (item) {
           const primaryBarcode = await Barcode.findOne({ itemId: item._id, isPrimary: true, isActive: true })

@@ -4,7 +4,7 @@
  * Renders live camera feed, manual entry, item identity, location, valuation, and contextual action triggers.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, showToast, showModal, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
+import { formatMoney, formatDate, showToast, showModal, escapeHtml, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
 
@@ -320,9 +320,21 @@ export function renderScanner(container) {
       }
 
       // Build item photo HTML
-      const itemPhotoHtml = item.imageUrl
-        ? `<div style="text-align: center; margin-bottom: 1rem;">
-            <img src="${item.imageUrl}" alt="${item.name}" style="max-height: 180px; max-width: 100%; border-radius: var(--radius-md); object-fit: cover; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);"
+      const rawImg = (item.imageUrl || '').trim();
+      let formattedImgUrl = '';
+      if (rawImg) {
+        if (rawImg.startsWith('http://') || rawImg.startsWith('https://') || rawImg.startsWith('data:') || rawImg.startsWith('blob:')) {
+          formattedImgUrl = rawImg;
+        } else if (rawImg.startsWith('/')) {
+          formattedImgUrl = rawImg;
+        } else {
+          formattedImgUrl = '/' + rawImg;
+        }
+      }
+
+      const itemPhotoHtml = formattedImgUrl
+        ? `<div style="text-align: center; margin-bottom: 1.25rem;">
+            <img src="${formattedImgUrl}" alt="${escapeHtml(item.name || '')}" style="max-height: 220px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); padding: 4px;"
               onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'width:100%;height:140px;background:var(--bg-surface-elevated);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:2.5rem;border:1px solid var(--border-subtle);\\'>📦</div>';">
           </div>`
         : `<div style="text-align: center; margin-bottom: 1rem;">

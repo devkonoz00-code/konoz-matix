@@ -182,7 +182,13 @@ export async function renderItemDetail(container, params) {
     if (photoContainer) {
       const formattedImg = formatImageUrl(item.imageUrl);
       if (formattedImg) {
-        photoContainer.innerHTML = `<img src="${formattedImg}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<span style=\\'font-size: 2rem; color: var(--text-muted);\\'>📦</span>';">`;
+        photoContainer.innerHTML = `<img src="${formattedImg}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" id="detail-item-img">`;
+        const detailImg = photoContainer.querySelector('#detail-item-img');
+        if (detailImg) {
+          detailImg.addEventListener('error', () => {
+            photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
+          });
+        }
       } else {
         photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
       }

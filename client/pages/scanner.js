@@ -322,9 +322,8 @@ export function renderScanner(container) {
       // Build item photo HTML
       const formattedImgUrl = formatImageUrl(item.imageUrl);
       const itemPhotoHtml = formattedImgUrl
-        ? `<div style="text-align: center; margin-bottom: 1.25rem; display: flex; justify-content: center;">
-            <img src="${formattedImgUrl}" alt="${escapeHtml(item.name || '')}" style="max-height: 220px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); padding: 4px;"
-              onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'width:100%;height:140px;background:var(--bg-surface-elevated);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:2.5rem;border:1px solid var(--border-subtle);\\'>📦</div>';">
+        ? `<div style="text-align: center; margin-bottom: 1.25rem; display: flex; justify-content: center;" id="scanner-item-photo-wrapper">
+            <img src="${formattedImgUrl}" alt="${escapeHtml(item.name || '')}" style="max-height: 220px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); padding: 4px;" id="scanner-item-img">
           </div>`
         : `<div style="text-align: center; margin-bottom: 1rem;">
             <div style="width: 100%; height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>
@@ -389,6 +388,17 @@ export function renderScanner(container) {
           </div>
         </div>
       `;
+
+      // Attach image error fallback to ensure clean UX
+      const scannerImg = resultContainer.querySelector('#scanner-item-img');
+      if (scannerImg) {
+        scannerImg.addEventListener('error', () => {
+          const wrapper = resultContainer.querySelector('#scanner-item-photo-wrapper');
+          if (wrapper) {
+            wrapper.innerHTML = `<div style="width: 100%; height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>`;
+          }
+        });
+      }
 
       i18n.translateDOM(resultContainer);
 

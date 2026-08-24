@@ -185,8 +185,10 @@ export async function renderItemDetail(container, params) {
         photoContainer.innerHTML = `<img src="${escapeHtml(formattedImg)}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" id="detail-item-img">`;
         const detailImg = photoContainer.querySelector('#detail-item-img');
         detailImg?.addEventListener('error', () => {
-          photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
-        });
+          photoContainer.innerHTML = `
+            <a href="${escapeHtml(formattedImg)}" target="_blank" rel="noopener noreferrer" title="تعذر تحميل الصورة داخل المنصة — افتح الرابط للتحقق" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.7rem;">⚠️</a>
+          `;
+        }, { once: true });
       } else {
         photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
       }

@@ -113,6 +113,7 @@ export async function renderItems(container) {
               <th style="width: 40px; text-align: center;">
                 <input type="checkbox" id="chk-select-all" title="Select all items for batch printing" style="cursor: pointer; width: 16px; height: 16px;">
               </th>
+              <th style="width: 72px; text-align: center;">الصورة</th>
               <th data-i18n="lbl_item_code">Item Code</th>
               <th data-i18n="lbl_name">Item Name</th>
               <th data-i18n="lbl_category">Category</th>
@@ -124,7 +125,7 @@ export async function renderItems(container) {
             </tr>
           </thead>
           <tbody id="items-table-body">
-            <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Loading catalog...</td></tr>
+            <tr><td colspan="10" style="text-align: center; color: var(--text-muted);">Loading catalog...</td></tr>
           </tbody>
         </table>
       </div>
@@ -158,7 +159,7 @@ export async function renderItems(container) {
       const items = res.data || [];
 
       if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">No items found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">No items found.</td></tr>`;
         return;
       }
 
@@ -178,11 +179,19 @@ export async function renderItems(container) {
         const itemTypeLabel = escapeHtml(it.itemType || '');
         const itemUnit = escapeHtml(it.unit || '');
         const itemBarcode = escapeHtml(barcodeCode || '');
+        const itemImageUrl = escapeHtml(formatImageUrl(it.imageUrl));
 
         return `
           <tr>
             <td style="text-align: center;">
               <input type="checkbox" class="item-chk" value="${itemId}" style="cursor: pointer; width: 16px; height: 16px;">
+            </td>
+            <td style="text-align: center; padding: 0.45rem;">
+              <a href="#/items/${itemId}" class="item-photo-link" aria-label="عرض تفاصيل ${itemName}" style="width: 52px; height: 52px; margin: 0 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); text-decoration: none;">
+                ${itemImageUrl
+                  ? `<img class="item-thumbnail-image" src="${itemImageUrl}" alt="${itemName}" loading="lazy" decoding="async" referrerpolicy="no-referrer" style="width: 100%; height: 100%; object-fit: cover;">`
+                  : '<span aria-hidden="true" style="font-size: 1.35rem;">📦</span>'}
+              </a>
             </td>
             <td>
               <a href="#/items/${itemId}" style="font-family: var(--font-mono); font-weight: 700; color: var(--primary);">${itemCode}</a>
@@ -227,6 +236,18 @@ export async function renderItems(container) {
           </tr>
         `;
       }).join('');
+
+      // Cloudinary/local delivery errors should affect only the thumbnail and
+      // must not hide the rest of the product row.
+      tbody.querySelectorAll('.item-thumbnail-image').forEach(image => {
+        image.addEventListener('error', () => {
+          const wrapper = image.closest('.item-photo-link');
+          if (wrapper) {
+            wrapper.title = 'تعذر تحميل صورة المنتج';
+            wrapper.innerHTML = '<span aria-hidden="true" style="font-size: 1.35rem;">⚠️</span>';
+          }
+        }, { once: true });
+      });
 
       // Select all toggle
       const selectAll = document.getElementById('chk-select-all');

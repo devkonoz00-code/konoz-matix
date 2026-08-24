@@ -393,9 +393,9 @@ export function renderScanner(container) {
       scannerImg?.addEventListener('error', () => {
         const wrapper = resultContainer.querySelector('#scanner-item-photo-wrapper');
         if (wrapper) {
-          wrapper.innerHTML = `<div style="width: 100%; height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>`;
+          wrapper.innerHTML = `<a href="${escapeHtml(formattedImgUrl)}" target="_blank" rel="noopener noreferrer" style="width: 100%; min-height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 0.4rem; align-items: center; justify-content: center; color: var(--warning); text-decoration: none; border: 1px solid var(--border-subtle);"><span style="font-size: 2rem;">⚠️</span><span style="font-size: 0.8rem;">تعذر عرض الصورة — فتح الرابط</span></a>`;
         }
-      });
+      }, { once: true });
 
       i18n.translateDOM(resultContainer);
 

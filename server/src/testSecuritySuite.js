@@ -34,7 +34,7 @@ const movementService = require('./services/movementService');
 const reportService = require('./services/reportService');
 const env = require('./config/env');
 const sanitize = require('./middleware/sanitize');
-const { MemoryRateLimiter } = require('./middleware/rateLimiter');
+const { MemoryRateLimiter, AuthRateLimiter } = require('./middleware/rateLimiter');
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/matix';
 
@@ -155,9 +155,9 @@ async function runSecuritySuite() {
     assert(err.name === 'JsonWebTokenError', 'Tampered/Forged JWT signature is strictly rejected');
   }
 
-  // Test 2.5: Brute-Force Rate Limiter Verification
+  // Test 2.5: Brute-Force Rate Limiter Verification (API per-IP)
   const testLimiter = new MemoryRateLimiter(60000, 3, 'Rate limit exceeded');
-  const mockReq = { ip: '192.168.1.100', baseUrl: '/api/auth', path: '/login' };
+  const mockReq = { ip: '192.168.1.100', baseUrl: '/api/reports', path: '/export' };
   let blockedCount = 0;
   for (let i = 0; i < 5; i++) {
     const mockRes = {
@@ -168,7 +168,22 @@ async function runSecuritySuite() {
     testLimiter.middleware()(mockReq, mockRes, () => {});
     if (mockRes.statusCode === 429) blockedCount++;
   }
-  assert(blockedCount === 2, `Rate limiter blocked ${blockedCount} requests exceeding threshold of 3`);
+  assert(blockedCount === 2, `API rate limiter blocked ${blockedCount} requests exceeding threshold of 3`);
+
+  // Test 2.6: Auth Rate Limiter isolates users by email (failed login on user A does not block user B)
+  const testAuthLimiter = new AuthRateLimiter(60000, 3, 'Too many login attempts');
+  for (let i = 0; i < 3; i++) {
+    testAuthLimiter.recordFailure('attacker@test.local');
+  }
+  const attackerStatus = testAuthLimiter.check('attacker@test.local');
+  assert(attackerStatus.blocked === true, 'Account attacker@test.local is blocked after 3 failed attempts');
+
+  const innocentStatus = testAuthLimiter.check('innocent_user@test.local');
+  assert(innocentStatus.blocked === false, 'Account innocent_user@test.local is NOT blocked when another user fails');
+
+  testAuthLimiter.reset('attacker@test.local');
+  const resetStatus = testAuthLimiter.check('attacker@test.local');
+  assert(resetStatus.blocked === false, 'Account attacker@test.local is unblocked after successful login reset');
 
   // 3. Authorization & Privilege Escalation Tests
   console.log('\n▸ Phase 3: Authorization, RBAC & Last Admin Lockout Protection');

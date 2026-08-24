@@ -1,6 +1,7 @@
 const authService = require('../services/authService');
 const auditService = require('../services/auditService');
 const { validateRequired, validateEmail } = require('../validators/common');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 const authController = {
   async login(req, res, next) {
@@ -9,8 +10,33 @@ const authController = {
       validateRequired(req.body, ['email', 'password']);
       validateEmail(email);
 
-      const result = await authService.login(email, password, req);
-      res.json({ success: true, data: result });
+      const cleanEmail = (email || '').trim().toLowerCase();
+
+      // Check if this email is currently rate-limited BEFORE processing
+      const limitStatus = authLimiter.check(cleanEmail);
+      if (limitStatus.blocked) {
+        return res.status(429).json({
+          success: false,
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: authLimiter.message,
+          retryAfterSeconds: limitStatus.retryAfterSeconds,
+        });
+      }
+
+      try {
+        const result = await authService.login(email, password, req);
+
+        // SUCCESS — reset the failure counter for this email
+        authLimiter.reset(cleanEmail);
+
+        res.json({ success: true, data: result });
+      } catch (loginError) {
+        // FAILURE — only increment the counter on actual auth failures
+        if (loginError.code === 'INVALID_CREDENTIALS') {
+          authLimiter.recordFailure(cleanEmail);
+        }
+        throw loginError;
+      }
     } catch (error) {
       next(error);
     }

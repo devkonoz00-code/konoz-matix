@@ -6,15 +6,14 @@ const morgan = require('morgan');
 const path = require('path');
 const env = require('./config/env');
 const { errorHandler } = require('./middleware/errorHandler');
-const { authLimiter, apiLimiter, exportLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, exportLimiter } = require('./middleware/rateLimiter');
 const sanitize = require('./middleware/sanitize');
 
 const app = express();
 
-// Trust reverse proxy (1 hop) in production (Render, Railway, Nginx)
-if (env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+// Trust reverse proxy (Render, Railway, Nginx, etc.)
+// Ensures req.ip returns the real client IP from X-Forwarded-For headers
+app.set('trust proxy', 1);
 
 // 0. HTTP Response Compression (Gzip / Deflate / Brotli)
 app.use(compression({
@@ -137,9 +136,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const idempotency = require('./middleware/idempotency');
 
-// Apply strict rate limiting to auth endpoints
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/refresh', authLimiter);
+// Export rate limiter for heavy operations
 app.use('/api/reports/export', exportLimiter);
 
 // General API rate limiter across all other /api routes

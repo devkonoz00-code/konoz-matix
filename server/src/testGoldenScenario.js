@@ -193,7 +193,7 @@ async function runGoldenScenario() {
   }, adminReq);
   assert(pocAssignment.isActive === true, 'POC assignment recorded');
 
-  // STEP 4: Supervisor looks up item and uses "Issue to a project" direct issue (starts PENDING)
+  // STEP 4: Supervisor looks up item and uses direct issue to project (transfers directly to project in CONFIRMED state)
   console.log('\n--- Step 4: Direct Issue 20 units of Item 1 by Supervisor to PRJ-01 (§18.4) ---');
   const directIssue = await movementService.create({
     type: 'ISSUE',
@@ -204,10 +204,7 @@ async function runGoldenScenario() {
     lines: [{ itemId: item1._id, quantity: 20 }],
   }, supervisorReq);
 
-  assert(directIssue.movement.status === 'PENDING', 'Direct issue movement created in PENDING state');
-  // Confirm direct issue
-  const confirmedDirectIssue = await movementService.confirmMovement(directIssue.movement._id, supervisorReq);
-  assert(confirmedDirectIssue.movement.status === 'CONFIRMED', 'Direct issue confirmed by project receiver');
+  assert(directIssue.movement.status === 'CONFIRMED', 'Direct issue movement created in CONFIRMED state (direct transfer to project)');
 
   // STEP 5: Traditional path in parallel: Material Request for Item 2
   console.log('\n--- Step 5: Material Request lifecycle for Item 2 (§18.5) ---');
@@ -230,9 +227,8 @@ async function runGoldenScenario() {
     requestId: req1.request._id,
     lines: [{ itemId: item2._id, quantity: 15 }],
   }, wmReq);
-  assert(reqIssue.movement.status === 'PENDING', 'Issue against request sits PENDING');
+  assert(reqIssue.movement.status === 'CONFIRMED', 'Issue against request created in CONFIRMED state (direct transfer to project)');
 
-  await movementService.confirmMovement(reqIssue.movement._id, supervisorReq);
   const prj1MaterialsAfterStep5 = await projectService.getMaterials(prj1._id);
   assert(prj1MaterialsAfterStep5.length === 2, 'PRJ-01 materials view shows both items');
 

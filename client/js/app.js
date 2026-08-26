@@ -692,6 +692,23 @@ async function initApp() {
   checkNotifications();
   setInterval(checkNotifications, 30000);
 
+  // Auto-bust old caches on client version update (especially for mobile PWA/browsers)
+  const APP_CLIENT_VERSION = '1.1.2';
+  try {
+    if (localStorage.getItem('matix_app_ver') !== APP_CLIENT_VERSION) {
+      localStorage.setItem('matix_app_ver', APP_CLIENT_VERSION);
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => {
+            if (name !== 'matix-v1.1.2') {
+              caches.delete(name);
+            }
+          });
+        }).catch(() => {});
+      }
+    }
+  } catch {}
+
   // Register PWA Service Worker
   if ('serviceWorker' in navigator) {
     let isReloadingForServiceWorker = false;
@@ -702,7 +719,9 @@ async function initApp() {
     });
 
     navigator.serviceWorker.register('./service-worker.js')
-      .then(registration => registration.update())
+      .then((registration) => {
+        registration.update();
+      })
       .catch((err) => {
         console.warn('SW registration failed:', err);
       });

@@ -121,9 +121,16 @@ candidateUploadDirs.forEach(dirPath => {
 });
 
 app.use(express.static(path.join(__dirname, '../../client'), {
-  maxAge: env.NODE_ENV === 'production' ? '1d' : '0',
+  maxAge: '0',
   etag: true,
   lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('service-worker.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  },
 }));
 
 // Health check (lightweight, unauthenticated)

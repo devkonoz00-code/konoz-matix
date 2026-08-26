@@ -412,8 +412,30 @@ export async function renderItems(container) {
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">السعر الإفرادي (د.ج) / Unit Price (DZD) *</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <label class="form-label" style="margin-bottom: 0;">السعر الإفرادي (د.ج) / Unit Price (DZD) *</label>
+              <span id="price-csv-hint" style="font-size: 0.72rem; color: var(--primary); font-weight: 600; display: none;">💡 أسعار مقترحة من السجل</span>
+            </div>
             <input type="number" step="0.01" id="inp-item-unit-price" class="form-control" placeholder="0.00" required>
+            
+            <!-- Quick Price Suggestions (Gros & PRIX_MIN) from CSV -->
+            <div id="price-suggestions-container" style="display: none; margin-top: 0.45rem; background: var(--bg-surface-elevated); padding: 0.5rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 500;">
+                💡 اضغط على أحد السعرين لتعيينه تلقائياً:
+              </div>
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-sm" id="btn-set-price-gros" style="font-size: 0.78rem; padding: 0.25rem 0.65rem; border: 1px solid #3b82f6; color: #1d4ed8; background: #eff6ff; display: none; align-items: center; gap: 0.35rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease;">
+                  <span>🏷️ <strong>Gros (الجملة):</strong></span>
+                  <span id="val-price-gros" style="font-weight: 700;">0.00</span>
+                  <span style="font-size: 0.7rem;">د.ج</span>
+                </button>
+                <button type="button" class="btn btn-sm" id="btn-set-price-min" style="font-size: 0.78rem; padding: 0.25rem 0.65rem; border: 1px solid #10b981; color: #047857; background: #ecfdf5; display: none; align-items: center; gap: 0.35rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease;">
+                  <span>🏷️ <strong>PRIX_MIN (أدنى سعر):</strong></span>
+                  <span id="val-price-min" style="font-weight: 700;">0.00</span>
+                  <span style="font-size: 0.7rem;">د.ج</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -779,13 +801,23 @@ export async function renderItems(container) {
           ? `<span class="autocomplete-badge-exists" title="مسجل مسبقاً في قاعدة البيانات"><span class="autocomplete-dot autocomplete-dot-green"></span> مسجل مسبقاً (${escapeHtml(item.existingItem?.itemCode || 'مسجل')})</span>`
           : `<span class="autocomplete-badge-new">مقترح من السجل</span>`;
 
+        const priceBadgeHtml = (item.grosPrice > 0 || item.minPrice > 0)
+          ? `<div style="font-size: 0.73rem; margin-top: 0.25rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              ${item.grosPrice > 0 ? `<span style="color: #1d4ed8; background: #eff6ff; padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid rgba(59,130,246,0.3);">🏷️ Gros: <strong>${item.grosPrice} د.ج</strong></span>` : ''}
+              ${item.minPrice > 0 ? `<span style="color: #047857; background: #ecfdf5; padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid rgba(16,185,129,0.3);">🏷️ Min: <strong>${item.minPrice} د.ج</strong></span>` : ''}
+            </div>`
+          : '';
+
         return `
-          <li class="autocomplete-item" data-idx="${idx}" role="option">
-            <div class="autocomplete-item-name">
-              ${item.existsInDb ? '<span class="autocomplete-dot autocomplete-dot-green" title="مسجل في قاعدة البيانات"></span>' : ''}
-              <span>${displayName}</span>
+          <li class="autocomplete-item" data-idx="${idx}" role="option" style="flex-direction: column; align-items: stretch; gap: 0.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="autocomplete-item-name">
+                ${item.existsInDb ? '<span class="autocomplete-dot autocomplete-dot-green" title="مسجل في قاعدة البيانات"></span>' : ''}
+                <span>${displayName}</span>
+              </div>
+              <div>${badgeHtml}</div>
             </div>
-            <div>${badgeHtml}</div>
+            ${priceBadgeHtml}
           </li>
         `;
       }).join('');
@@ -815,11 +847,80 @@ export async function renderItems(container) {
       });
     }
 
+    function updatePriceSuggestions(gros, min) {
+      const priceContainer = modal.querySelector('#price-suggestions-container');
+      const priceHint = modal.querySelector('#price-csv-hint');
+      const grosValEl = modal.querySelector('#val-price-gros');
+      const minValEl = modal.querySelector('#val-price-min');
+      const grosBtn = modal.querySelector('#btn-set-price-gros');
+      const minBtn = modal.querySelector('#btn-set-price-min');
+      const priceInput = modal.querySelector('#inp-item-unit-price');
+
+      const gVal = parseFloat(gros) || 0;
+      const mVal = parseFloat(min) || 0;
+
+      if (gVal > 0 || mVal > 0) {
+        if (priceContainer) priceContainer.style.display = 'block';
+        if (priceHint) priceHint.style.display = 'inline';
+
+        if (grosBtn && grosValEl) {
+          if (gVal > 0) {
+            grosBtn.style.display = 'inline-flex';
+            grosValEl.textContent = gVal;
+            grosBtn.onclick = (e) => {
+              e.preventDefault();
+              if (priceInput) {
+                priceInput.value = gVal;
+                priceInput.focus();
+                showToast(`تم تعيين سعر الجملة (${gVal} د.ج)`, 'info');
+              }
+            };
+          } else {
+            grosBtn.style.display = 'none';
+          }
+        }
+
+        if (minBtn && minValEl) {
+          if (mVal > 0) {
+            minBtn.style.display = 'inline-flex';
+            minValEl.textContent = mVal;
+            minBtn.onclick = (e) => {
+              e.preventDefault();
+              if (priceInput) {
+                priceInput.value = mVal;
+                priceInput.focus();
+                showToast(`تم تعيين أدنى سعر (${mVal} د.ج)`, 'info');
+              }
+            };
+          } else {
+            minBtn.style.display = 'none';
+          }
+        }
+
+        // Auto pre-fill price if input is currently empty
+        if (priceInput && (!priceInput.value || parseFloat(priceInput.value) === 0)) {
+          priceInput.value = gVal || mVal;
+        }
+      } else {
+        if (priceContainer) priceContainer.style.display = 'none';
+        if (priceHint) priceHint.style.display = 'none';
+      }
+    }
+
     function selectSuggestion(item) {
       if (!item || !nameInput) return;
       nameInput.value = item.name;
       updateClearButton();
       hideDropdown();
+
+      // Update price suggestions from CSV Gros and PRIX_MIN
+      if (item.grosPrice > 0 || item.minPrice > 0) {
+        updatePriceSuggestions(item.grosPrice, item.minPrice);
+      } else if (item.existingItem?.unitPrice) {
+        updatePriceSuggestions(item.existingItem.unitPrice, 0);
+      } else {
+        updatePriceSuggestions(0, 0);
+      }
 
       if (item.existsInDb && item.existingItem) {
         if (duplicateWarning && duplicateCode) {

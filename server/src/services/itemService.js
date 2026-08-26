@@ -113,10 +113,18 @@ function loadCsvArticles() {
           const article = (cols[1] || '').trim();
           if (article && !set.has(article.toLowerCase())) {
             set.add(article.toLowerCase());
+            const gros = parseFloat((cols[8] || '0').replace(',', '.')) || 0;
+            const minPrice = parseFloat((cols[10] || '0').replace(',', '.')) || 0;
+            const dernierPrixAchat = parseFloat((cols[6] || '0').replace(',', '.')) || 0;
+            const prixRevient = parseFloat((cols[7] || '0').replace(',', '.')) || 0;
             list.push({
               name: article,
               code: (cols[2] || '').trim(),
-              unitPrice: parseFloat((cols[5] || cols[6] || '0').replace(',', '.')) || 0,
+              grosPrice: gros,
+              minPrice: minPrice,
+              dernierPrixAchat: dernierPrixAchat,
+              prixRevient: prixRevient,
+              unitPrice: gros || minPrice || dernierPrixAchat || 0,
             });
           }
         }
@@ -575,6 +583,11 @@ const itemService = {
         suggestions.push({
           name: item.name,
           code: item.code || null,
+          grosPrice: item.grosPrice || 0,
+          minPrice: item.minPrice || 0,
+          dernierPrixAchat: item.dernierPrixAchat || 0,
+          prixRevient: item.prixRevient || 0,
+          unitPrice: item.unitPrice || 0,
           existsInDb,
           existingItem: existing ? {
             _id: existing._id,

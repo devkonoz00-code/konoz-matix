@@ -26,7 +26,7 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=2.0.4">
+  <link rel="stylesheet" href="./css/main.css?v=2.0.5">
 
   <!-- Barcode & QR Code Engines (Local + CDN Fallback) -->
   <script src="./js/qr-helper.js"></script>
@@ -102,6 +102,23 @@
         window.closeMobileMenu(e);
       }
     }, { passive: false });
+
+    // Auto-close menu whenever a navigation link is clicked inside sidebar on mobile
+    document.addEventListener('click', function(e) {
+      if (window.innerWidth <= 900) {
+        var link = e.target.closest && e.target.closest('#app-sidebar a');
+        if (link) {
+          window.closeMobileMenu();
+        }
+      }
+    });
+
+    // Auto-close menu whenever route hash changes
+    window.addEventListener('hashchange', function() {
+      if (window.innerWidth <= 900) {
+        window.closeMobileMenu();
+      }
+    });
   </script>
   <div id="app-root">
     <!-- Desktop Sidebar Navigation -->
@@ -253,6 +270,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- App Bootstrap JS -->
-  <script type="module" src="./js/app.js?v=2.0.4"></script>
+  <script type="module" src="./js/app.js?v=2.0.5"></script>
 </body>
 </html>

@@ -65,6 +65,9 @@ class Router {
 
     const appContainer = document.getElementById('main-content');
     if (appContainer && matchedHandler) {
+      if (window.innerWidth <= 900 && typeof window.closeMobileMenu === 'function') {
+        window.closeMobileMenu();
+      }
       window.scrollTo(0, 0);
       try {
         await matchedHandler(appContainer, this.currentParams);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matix-v1.1.1';
+const CACHE_NAME = 'matix-v1.1.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -41,7 +41,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Network first for APIs, cache fallback for assets
+// Fetch Event - Network first for APIs, network first for images, cache fallback for assets
 self.addEventListener('fetch', (event) => {
   // Never cache API requests (keep movement ledger strictly live)
   if (event.request.url.includes('/api/')) {
@@ -69,6 +69,22 @@ self.addEventListener('fetch', (event) => {
   }
 
   const requestUrl = new URL(event.request.url);
+
+  // Images and CDN media: ALWAYS Network-first
+  if (
+    event.request.destination === 'image' ||
+    requestUrl.pathname.includes('/uploads/') ||
+    requestUrl.hostname.includes('cloudinary.com')
+  ) {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match(event.request);
+        return cached || new Response('', { status: 404 });
+      })
+    );
+    return;
+  }
+
   const isAppCode = (
     event.request.mode === 'navigate' ||
     ['script', 'style', 'worker'].includes(event.request.destination) ||
@@ -118,3 +134,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+

@@ -26,7 +26,7 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=2.0.2">
+  <link rel="stylesheet" href="./css/main.css?v=2.0.3">
 
   <!-- Barcode & QR Code Engines (Local + CDN Fallback) -->
   <script src="./js/qr-helper.js"></script>
@@ -35,6 +35,30 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
+  <!-- Mobile menu handlers - MUST be inline, synchronous, zero external dependencies -->
+  <script>
+    window.toggleMobileMenu = function() {
+      var sb = document.getElementById('app-sidebar');
+      var ov = document.getElementById('sidebar-overlay');
+      if (!sb) return;
+      if (sb.classList.contains('mobile-open')) {
+        sb.classList.remove('mobile-open');
+        if (ov) ov.classList.remove('active');
+        document.body.style.overflow = '';
+      } else {
+        sb.classList.add('mobile-open');
+        if (ov) ov.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+    };
+    window.closeMobileMenu = function() {
+      var sb = document.getElementById('app-sidebar');
+      var ov = document.getElementById('sidebar-overlay');
+      if (sb) sb.classList.remove('mobile-open');
+      if (ov) ov.classList.remove('active');
+      document.body.style.overflow = '';
+    };
+  </script>
   <div id="app-root">
     <!-- Desktop Sidebar Navigation -->
     <aside class="sidebar" id="app-sidebar">
@@ -185,6 +209,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- App Bootstrap JS -->
-  <script type="module" src="./js/app.js?v=2.0.2"></script>
+  <script type="module" src="./js/app.js?v=2.0.3"></script>
 </body>
 </html>

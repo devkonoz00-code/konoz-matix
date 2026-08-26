@@ -389,6 +389,10 @@ function buildUploadOptions(options = {}) {
   const uploadOptions = {
     folder: 'matix',
     resource_type: 'auto',
+    transformation: [
+      { width: 1200, height: 1200, crop: 'limit' },
+      { quality: 'auto:good', fetch_format: 'auto' },
+    ],
     ...options,
   };
   uploadOptions.timeout = resolveUploadTimeoutMs(uploadOptions.timeout);

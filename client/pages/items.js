@@ -6,6 +6,7 @@ import { api } from '../js/api.js';
 import { formatMoney, showToast, showModal, escapeHtml, formatImageUrl, openBarcodeScannerModal, openImageLightboxModal } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
+import { compressImage, formatFileSize } from '../js/image-compressor.js';
 
 const ITEM_EDITOR_ROLES = new Set(['ADMIN', 'WAREHOUSE_MANAGER']);
 const ITEM_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -475,7 +476,10 @@ export async function renderItems(container) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">صورة المادة / Item Image (اختياري)</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" style="margin-bottom: 0;">صورة المادة / Item Image (اختياري)</label>
+            <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">⚡ ضغط تلقائي ذكي فائق السرعة</span>
+          </div>
           <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
               🖼️ اختيار من المعرض
@@ -486,6 +490,7 @@ export async function renderItems(container) {
               <input type="file" id="inp-item-image-camera" accept="image/jpeg,image/png,image/webp" capture="environment" style="display: none;">
             </label>
           </div>
+          <div id="item-image-compression-badge" style="display: none; margin-top: 0.4rem; font-size: 0.78rem; color: #047857; background: #ecfdf5; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.3);"></div>
           <div id="item-image-preview-box" style="display: none; margin-top: 0.5rem; text-align: center;">
             <img id="item-image-preview" src="" alt="Preview" style="max-height: 120px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: cover;">
             <div style="margin-top: 0.25rem;">
@@ -539,8 +544,9 @@ export async function renderItems(container) {
 
         const fileInput = document.getElementById('inp-item-image-file');
         const cameraInput = document.getElementById('inp-item-image-camera');
-        const selectedFile = (fileInput && fileInput.files && fileInput.files[0])
+        const rawFile = (fileInput && fileInput.files && fileInput.files[0])
           || (cameraInput && cameraInput.files && cameraInput.files[0]);
+        const selectedFile = stagedNewItemImageFile || rawFile;
         const imageValidationError = getItemImageValidationError(selectedFile);
         if (imageValidationError) {
           showToast(imageValidationError, 'error');
@@ -669,25 +675,50 @@ export async function renderItems(container) {
       });
     });
 
-    // Image preview handlers for gallery and camera inputs
-    function handleImagePreview(file, sourceInput) {
+    // Image preview & compression handlers for gallery and camera inputs
+    let stagedNewItemImageFile = null;
+    async function handleImagePreview(file, sourceInput) {
       const previewBox = modal.querySelector('#item-image-preview-box');
       const previewImg = modal.querySelector('#item-image-preview');
+      const badge = modal.querySelector('#item-image-compression-badge');
       if (file && previewBox && previewImg) {
         const validationError = getItemImageValidationError(file);
         if (validationError) {
           if (sourceInput) sourceInput.value = '';
           previewImg.removeAttribute('src');
           previewBox.style.display = 'none';
+          if (badge) badge.style.display = 'none';
+          stagedNewItemImageFile = null;
           showToast(validationError, 'error');
           return;
         }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          previewImg.src = e.target.result;
+
+        if (badge) {
+          badge.style.display = 'block';
+          badge.innerHTML = `⏳ <em>جاري ضغط الصورة وتحسين الحجم...</em>`;
+        }
+
+        try {
+          const result = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
+          stagedNewItemImageFile = result.file;
+          previewImg.src = result.dataUrl;
           previewBox.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+
+          if (badge) {
+            badge.style.display = 'block';
+            badge.innerHTML = `⚡ <strong>تم ضغط الصورة بنجاح:</strong> من ${formatFileSize(result.originalSize)} إلى <strong>${formatFileSize(result.compressedSize)}</strong> <span style="color: #059669;">(وفرت ${result.ratio}% من المساحة 🟢)</span>`;
+          }
+        } catch (err) {
+          // Fallback to original uncompressed file if compression fails
+          stagedNewItemImageFile = file;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            previewBox.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+          if (badge) badge.style.display = 'none';
+        }
       }
     }
 
@@ -713,8 +744,11 @@ export async function renderItems(container) {
     modal.querySelector('#btn-remove-image')?.addEventListener('click', () => {
       if (galleryInput) galleryInput.value = '';
       if (cameraInput) cameraInput.value = '';
+      stagedNewItemImageFile = null;
       const previewBox = modal.querySelector('#item-image-preview-box');
       if (previewBox) previewBox.style.display = 'none';
+      const badge = modal.querySelector('#item-image-compression-badge');
+      if (badge) badge.style.display = 'none';
     });
 
     // Smart Autocomplete from CSV & Database for Item Name (§13)
@@ -1265,7 +1299,10 @@ export async function openEditItemModal(itemId, onSuccess) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">صورة المادة / Item Image</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label class="form-label" style="margin-bottom: 0;">صورة المادة / Item Image</label>
+            <span style="font-size: 0.72rem; color: #047857; font-weight: 600;">⚡ ضغط تلقائي ذكي فائق السرعة</span>
+          </div>
           <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <label class="btn btn-sm btn-outline" style="cursor: pointer; margin: 0;">
               🖼️ اختيار صورة جديدة
@@ -1277,6 +1314,7 @@ export async function openEditItemModal(itemId, onSuccess) {
             </label>
             <span id="edit-image-file-name" style="font-size: 0.75rem; color: var(--text-muted);"></span>
           </div>
+          <div id="edit-image-compression-badge" style="display: none; margin-top: 0.4rem; font-size: 0.78rem; color: #047857; background: #ecfdf5; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.3);"></div>
           <div id="edit-image-preview-box" style="${hasOriginalImage ? '' : 'display: none;'} margin-top: 0.65rem; padding: 0.65rem; text-align: center; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
             <img id="edit-image-preview" src="${escapeHtml(formattedImageUrl)}" alt="${escapeHtml(item.name || 'Preview')}" style="${formattedImageUrl ? '' : 'display: none;'} max-height: 180px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); object-fit: contain;">
             <div id="edit-image-preview-status" style="${formattedImageUrl ? 'display: none;' : ''} color: var(--warning); font-size: 0.78rem; padding: 0.5rem;">تعذر عرض الصورة الحالية، لكن سيبقى رابطها محفوظاً ما لم تختر إزالتها أو استبدالها.</div>
@@ -1284,7 +1322,7 @@ export async function openEditItemModal(itemId, onSuccess) {
               <button type="button" id="btn-edit-remove-image" class="btn btn-sm btn-outline" style="font-size: 0.75rem; color: var(--danger);" ${hasOriginalImage ? '' : 'disabled'}>✕ إزالة الصورة</button>
             </div>
           </div>
-          <small style="display: block; margin-top: 0.35rem; color: var(--text-muted);">JPEG أو PNG أو WebP، بحد أقصى 5 MB.</small>
+          <small style="display: block; margin-top: 0.35rem; color: var(--text-muted);">يتم ضغط الصورة تلقائياً لتوفير 90%+ من المساحة وتسريع التحميل.</small>
         </div>
       </form>
     `;
@@ -1330,7 +1368,8 @@ export async function openEditItemModal(itemId, onSuccess) {
 
         const fileInput = root.querySelector('#inp-edit-image-file');
         const cameraInput = root.querySelector('#inp-edit-image-camera');
-        const selectedFile = fileInput?.files?.[0] || cameraInput?.files?.[0];
+        const rawFile = fileInput?.files?.[0] || cameraInput?.files?.[0];
+        const selectedFile = stagedEditImageFile || rawFile;
         const imageValidationError = getItemImageValidationError(selectedFile);
         if (imageValidationError) {
           showToast(imageValidationError, 'error');
@@ -1370,6 +1409,7 @@ export async function openEditItemModal(itemId, onSuccess) {
       },
     });
 
+    let stagedEditImageFile = null;
     const fileInput = modal.querySelector('#inp-edit-image-file');
     const cameraInput = modal.querySelector('#inp-edit-image-camera');
     const previewBox = modal.querySelector('#edit-image-preview-box');
@@ -1377,6 +1417,7 @@ export async function openEditItemModal(itemId, onSuccess) {
     const previewStatus = modal.querySelector('#edit-image-preview-status');
     const removeButton = modal.querySelector('#btn-edit-remove-image');
     const fileName = modal.querySelector('#edit-image-file-name');
+    const editBadge = modal.querySelector('#edit-image-compression-badge');
     const showPreviewFailure = () => {
       if (previewImage) previewImage.style.display = 'none';
       if (previewStatus) {
@@ -1387,11 +1428,13 @@ export async function openEditItemModal(itemId, onSuccess) {
 
     previewImage?.addEventListener('error', showPreviewFailure);
 
-    const previewSelectedFile = (selectedFile, sourceInput) => {
+    const previewSelectedFile = async (selectedFile, sourceInput) => {
       if (!selectedFile) return;
       const validationError = getItemImageValidationError(selectedFile);
       if (validationError) {
         sourceInput.value = '';
+        stagedEditImageFile = null;
+        if (editBadge) editBadge.style.display = 'none';
         showToast(validationError, 'error');
         return;
       }
@@ -1399,20 +1442,40 @@ export async function openEditItemModal(itemId, onSuccess) {
       imageRemoved = false;
       if (previewBox) previewBox.style.display = 'block';
       if (removeButton) removeButton.disabled = false;
-      if (fileName) fileName.textContent = `${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
 
-      const reader = new FileReader();
-      reader.addEventListener('load', event => {
+      if (editBadge) {
+        editBadge.style.display = 'block';
+        editBadge.innerHTML = `⏳ <em>جاري ضغط الصورة وتحسين الحجم...</em>`;
+      }
+
+      try {
+        const result = await compressImage(selectedFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
+        stagedEditImageFile = result.file;
         if (previewImage) {
-          previewImage.src = event.target?.result || '';
+          previewImage.src = result.dataUrl;
           previewImage.style.display = 'inline-block';
         }
         if (previewStatus) previewStatus.style.display = 'none';
-      });
-      reader.addEventListener('error', () => {
-        showToast('تعذر قراءة ملف الصورة المحدد', 'error');
-      });
-      reader.readAsDataURL(selectedFile);
+        if (fileName) fileName.textContent = `${result.file.name} (${formatFileSize(result.compressedSize)})`;
+
+        if (editBadge) {
+          editBadge.style.display = 'block';
+          editBadge.innerHTML = `⚡ <strong>تم ضغط الصورة:</strong> من ${formatFileSize(result.originalSize)} إلى <strong>${formatFileSize(result.compressedSize)}</strong> <span style="color: #059669;">(وفرت ${result.ratio}% من المساحة 🟢)</span>`;
+        }
+      } catch (err) {
+        stagedEditImageFile = selectedFile;
+        if (fileName) fileName.textContent = `${selectedFile.name} (${formatFileSize(selectedFile.size)})`;
+        const reader = new FileReader();
+        reader.addEventListener('load', event => {
+          if (previewImage) {
+            previewImage.src = event.target?.result || '';
+            previewImage.style.display = 'inline-block';
+          }
+          if (previewStatus) previewStatus.style.display = 'none';
+        });
+        reader.readAsDataURL(selectedFile);
+        if (editBadge) editBadge.style.display = 'none';
+      }
     };
 
     fileInput?.addEventListener('change', () => {

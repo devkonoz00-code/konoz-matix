@@ -143,6 +143,11 @@ export function formatImageUrl(url) {
     clean = clean.startsWith('/') ? clean : `/${clean}`;
   }
 
+  // Apply Cloudinary automatic WebP/AVIF format & quality optimization
+  if (clean.includes('res.cloudinary.com') && clean.includes('/upload/') && !clean.includes('f_auto') && !clean.includes('q_auto')) {
+    clean = clean.replace('/upload/', '/upload/f_auto,q_auto/');
+  }
+
   return clean;
 }
 

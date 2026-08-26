@@ -664,17 +664,25 @@ async function initApp() {
     overlay?.classList.remove('active');
   }
 
-  toggleBtn?.addEventListener('click', (e) => {
+  const handleToggle = (e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (sidebar?.classList.contains('mobile-open')) {
       closeSidebar();
     } else {
       openSidebar();
     }
-  });
+  };
 
-  closeBtn?.addEventListener('click', closeSidebar);
-  overlay?.addEventListener('click', closeSidebar);
+  toggleBtn?.addEventListener('click', handleToggle);
+  closeBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeSidebar();
+  });
+  overlay?.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeSidebar();
+  });
 
   // Close mobile sidebar automatically whenever any navigation link is clicked
   sidebar?.querySelectorAll('.sidebar-nav a').forEach((link) => {

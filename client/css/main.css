@@ -1122,12 +1122,13 @@ html[dir="rtl"] .toast-container {
     transform: translateX(100%);
   }
 
-  .sidebar.mobile-open {
-    transform: translateX(0);
+  .sidebar.mobile-open,
+  html[dir="rtl"] .sidebar.mobile-open {
+    transform: translateX(0) !important;
   }
 
   .sidebar-overlay.active {
-    display: block;
+    display: block !important;
   }
 
   .main-wrapper {

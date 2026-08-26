@@ -1117,17 +1117,17 @@ html[dir="rtl"] .toast-container {
     position: fixed !important;
     top: 0 !important;
     bottom: 0 !important;
-    left: 0 !important;
+    left: -320px !important;
     right: auto !important;
     height: 100vh !important;
     height: 100dvh !important;
     width: 280px !important;
     max-width: 85vw !important;
-    z-index: 99999 !important;
+    z-index: 999999 !important;
     background: var(--bg-surface, #ffffff) !important;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3) !important;
-    transform: translateX(-100%) !important;
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 0 35px rgba(0, 0, 0, 0.35) !important;
+    transform: none !important;
+    transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), right 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important;
   }
 
@@ -1136,18 +1136,28 @@ html[dir="rtl"] .toast-container {
   body.rtl #app-sidebar,
   body.rtl .sidebar {
     left: auto !important;
-    right: 0 !important;
-    transform: translateX(100%) !important;
+    right: -320px !important;
+    transform: none !important;
   }
 
   #app-sidebar.mobile-open,
-  .sidebar.mobile-open,
+  .sidebar.mobile-open {
+    left: 0 !important;
+    right: auto !important;
+    transform: none !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
   html[dir="rtl"] #app-sidebar.mobile-open,
   html[dir="rtl"] .sidebar.mobile-open,
   body.rtl #app-sidebar.mobile-open,
   body.rtl .sidebar.mobile-open {
-    transform: translateX(0) !important;
+    left: auto !important;
+    right: 0 !important;
+    transform: none !important;
     visibility: visible !important;
+    opacity: 1 !important;
   }
 
   .sidebar-overlay {
@@ -1156,7 +1166,7 @@ html[dir="rtl"] .toast-container {
     inset: 0 !important;
     background: rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(3px) !important;
-    z-index: 99990 !important;
+    z-index: 999990 !important;
   }
 
   .sidebar-overlay.active {

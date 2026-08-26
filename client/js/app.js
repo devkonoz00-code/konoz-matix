@@ -30,26 +30,58 @@ import { playSound, playSuccessChime, playConfirmBeep, playErrorTone } from './s
 export { playSound, playSuccessChime, playConfirmBeep, playErrorTone };
 
 // Immediate global mobile menu handlers (works synchronously on touch/click)
-window.toggleMobileMenu = function() {
+window.toggleMobileMenu = function(e) {
+  if (e && e.preventDefault) e.preventDefault();
   const sb = document.getElementById('app-sidebar');
   const ov = document.getElementById('sidebar-overlay');
   if (!sb) return;
-  if (sb.classList.contains('mobile-open')) {
-    sb.classList.remove('mobile-open');
-    ov?.classList.remove('active');
-    document.body.style.overflow = '';
+  const isRtl = document.documentElement.getAttribute('dir') === 'rtl' || (document.body && document.body.classList.contains('rtl'));
+  const isOpen = sb.classList.contains('mobile-open') || (isRtl ? sb.style.right === '0px' : sb.style.left === '0px');
+  if (isOpen) {
+    window.closeMobileMenu();
   } else {
     sb.classList.add('mobile-open');
-    ov?.classList.add('active');
+    sb.style.setProperty('display', 'flex', 'important');
+    sb.style.setProperty('visibility', 'visible', 'important');
+    sb.style.setProperty('opacity', '1', 'important');
+    sb.style.setProperty('z-index', '999999', 'important');
+    if (isRtl) {
+      sb.style.setProperty('right', '0px', 'important');
+      sb.style.setProperty('left', 'auto', 'important');
+    } else {
+      sb.style.setProperty('left', '0px', 'important');
+      sb.style.setProperty('right', 'auto', 'important');
+    }
+    if (ov) {
+      ov.classList.add('active');
+      ov.style.setProperty('display', 'block', 'important');
+      ov.style.setProperty('z-index', '999990', 'important');
+    }
     document.body.style.overflow = 'hidden';
   }
 };
 
-window.closeMobileMenu = function() {
+window.closeMobileMenu = function(e) {
+  if (e && e.preventDefault) e.preventDefault();
   const sb = document.getElementById('app-sidebar');
   const ov = document.getElementById('sidebar-overlay');
-  sb?.classList.remove('mobile-open');
-  ov?.classList.remove('active');
+  const isRtl = document.documentElement.getAttribute('dir') === 'rtl' || (document.body && document.body.classList.contains('rtl'));
+  if (sb) {
+    sb.classList.remove('mobile-open');
+    if (window.innerWidth <= 900) {
+      if (isRtl) {
+        sb.style.setProperty('right', '-320px', 'important');
+        sb.style.setProperty('left', 'auto', 'important');
+      } else {
+        sb.style.setProperty('left', '-320px', 'important');
+        sb.style.setProperty('right', 'auto', 'important');
+      }
+    }
+  }
+  if (ov) {
+    ov.classList.remove('active');
+    ov.style.setProperty('display', 'none', 'important');
+  }
   document.body.style.overflow = '';
 };
 

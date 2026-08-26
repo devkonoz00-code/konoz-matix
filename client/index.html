@@ -26,7 +26,7 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=2.0.3">
+  <link rel="stylesheet" href="./css/main.css?v=2.0.4">
 
   <!-- Barcode & QR Code Engines (Local + CDN Fallback) -->
   <script src="./js/qr-helper.js"></script>
@@ -37,27 +37,71 @@
 <body>
   <!-- Mobile menu handlers - MUST be inline, synchronous, zero external dependencies -->
   <script>
-    window.toggleMobileMenu = function() {
+    window.toggleMobileMenu = function(e) {
+      if (e && e.preventDefault) e.preventDefault();
       var sb = document.getElementById('app-sidebar');
       var ov = document.getElementById('sidebar-overlay');
       if (!sb) return;
-      if (sb.classList.contains('mobile-open')) {
-        sb.classList.remove('mobile-open');
-        if (ov) ov.classList.remove('active');
-        document.body.style.overflow = '';
+      var isRtl = document.documentElement.getAttribute('dir') === 'rtl' || (document.body && document.body.classList.contains('rtl'));
+      var isOpen = sb.classList.contains('mobile-open') || (isRtl ? sb.style.right === '0px' : sb.style.left === '0px');
+      if (isOpen) {
+        window.closeMobileMenu();
       } else {
         sb.classList.add('mobile-open');
-        if (ov) ov.classList.add('active');
+        sb.style.setProperty('display', 'flex', 'important');
+        sb.style.setProperty('visibility', 'visible', 'important');
+        sb.style.setProperty('opacity', '1', 'important');
+        sb.style.setProperty('z-index', '999999', 'important');
+        if (isRtl) {
+          sb.style.setProperty('right', '0px', 'important');
+          sb.style.setProperty('left', 'auto', 'important');
+        } else {
+          sb.style.setProperty('left', '0px', 'important');
+          sb.style.setProperty('right', 'auto', 'important');
+        }
+        if (ov) {
+          ov.classList.add('active');
+          ov.style.setProperty('display', 'block', 'important');
+          ov.style.setProperty('z-index', '999990', 'important');
+        }
         document.body.style.overflow = 'hidden';
       }
     };
-    window.closeMobileMenu = function() {
+    window.closeMobileMenu = function(e) {
+      if (e && e.preventDefault) e.preventDefault();
       var sb = document.getElementById('app-sidebar');
       var ov = document.getElementById('sidebar-overlay');
-      if (sb) sb.classList.remove('mobile-open');
-      if (ov) ov.classList.remove('active');
+      var isRtl = document.documentElement.getAttribute('dir') === 'rtl' || (document.body && document.body.classList.contains('rtl'));
+      if (sb) {
+        sb.classList.remove('mobile-open');
+        if (window.innerWidth <= 900) {
+          if (isRtl) {
+            sb.style.setProperty('right', '-320px', 'important');
+            sb.style.setProperty('left', 'auto', 'important');
+          } else {
+            sb.style.setProperty('left', '-320px', 'important');
+            sb.style.setProperty('right', 'auto', 'important');
+          }
+        }
+      }
+      if (ov) {
+        ov.classList.remove('active');
+        ov.style.setProperty('display', 'none', 'important');
+      }
       document.body.style.overflow = '';
     };
+
+    // Attach immediate touchstart & click listeners to body for instant delegation
+    document.addEventListener('touchstart', function(e) {
+      var btn = e.target.closest && e.target.closest('#btn-toggle-sidebar');
+      if (btn) {
+        window.toggleMobileMenu(e);
+      }
+      var close = e.target.closest && e.target.closest('#btn-close-sidebar');
+      if (close || (e.target && e.target.id === 'sidebar-overlay')) {
+        window.closeMobileMenu(e);
+      }
+    }, { passive: false });
   </script>
   <div id="app-root">
     <!-- Desktop Sidebar Navigation -->
@@ -209,6 +253,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- App Bootstrap JS -->
-  <script type="module" src="./js/app.js?v=2.0.3"></script>
+  <script type="module" src="./js/app.js?v=2.0.4"></script>
 </body>
 </html>

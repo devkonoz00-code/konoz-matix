@@ -692,24 +692,20 @@ async function initApp() {
   checkNotifications();
   setInterval(checkNotifications, 30000);
 
-  // Auto-bust old caches on client version update (especially for mobile PWA/browsers)
-  const APP_CLIENT_VERSION = '1.1.2';
-  try {
-    if (localStorage.getItem('matix_app_ver') !== APP_CLIENT_VERSION) {
-      localStorage.setItem('matix_app_ver', APP_CLIENT_VERSION);
-      if ('caches' in window) {
-        caches.keys().then((names) => {
-          names.forEach((name) => {
-            if (name !== 'matix-v1.1.2') {
-              caches.delete(name);
-            }
-          });
-        }).catch(() => {});
-      }
-    }
-  } catch {}
+  // Aggressively purge ALL old service worker caches on every load
+  const CURRENT_SW_CACHE = 'matix-v1.1.2';
+  if ('caches' in window) {
+    caches.keys().then((names) => {
+      names.forEach((name) => {
+        if (name !== CURRENT_SW_CACHE) {
+          caches.delete(name);
+        }
+      });
+    }).catch(() => {});
+  }
 
-  // Register PWA Service Worker
+  // Register PWA Service Worker — updateViaCache:'none' forces the browser
+  // to ALWAYS fetch service-worker.js from the network, never from HTTP cache
   if ('serviceWorker' in navigator) {
     let isReloadingForServiceWorker = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -718,7 +714,7 @@ async function initApp() {
       window.location.reload();
     });
 
-    navigator.serviceWorker.register('./service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
       .then((registration) => {
         registration.update();
       })

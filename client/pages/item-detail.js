@@ -3,7 +3,7 @@
  * Displays item identity, active location balances, barcodes, and chronological movement ledger history.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal, escapeHtml, formatImageUrl } from '../js/app.js';
+import { formatMoney, formatDate, getMovementTypeBadge, showToast, showModal, escapeHtml, formatImageUrl, openBarcodeScannerModal, openImageLightboxModal } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { openEditItemModal } from './items.js';
 
@@ -182,15 +182,21 @@ export async function renderItemDetail(container, params) {
     if (photoContainer) {
       const formattedImg = formatImageUrl(item.imageUrl);
       if (formattedImg) {
-        photoContainer.innerHTML = `<img src="${escapeHtml(formattedImg)}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover;" id="detail-item-img">`;
+        photoContainer.innerHTML = `
+          <div style="position: relative; width: 100%; height: 100%; cursor: pointer;" id="btn-zoom-detail-img" title="اضغط لتكبير الصورة داخل المنصة">
+            <img src="${escapeHtml(formattedImg)}" alt="${escapeHtml(item.name || '')}" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm);" id="detail-item-img">
+            <div style="position: absolute; bottom: 4px; right: 4px; background: rgba(0, 0, 0, 0.7); color: #fff; padding: 2px 5px; border-radius: 3px; font-size: 0.65rem; pointer-events: none;">🔍</div>
+          </div>
+        `;
+        photoContainer.querySelector('#btn-zoom-detail-img')?.addEventListener('click', () => {
+          openImageLightboxModal(formattedImg, item.name || 'صورة المادة');
+        });
         const detailImg = photoContainer.querySelector('#detail-item-img');
         detailImg?.addEventListener('error', () => {
-          photoContainer.innerHTML = `
-            <a href="${escapeHtml(formattedImg)}" target="_blank" rel="noopener noreferrer" title="تعذر تحميل الصورة داخل المنصة — افتح الرابط للتحقق" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1.7rem;">⚠️</a>
-          `;
+          photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted); opacity: 0.6;">📦</span>`;
         }, { once: true });
       } else {
-        photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted);">📦</span>`;
+        photoContainer.innerHTML = `<span style="font-size: 2rem; color: var(--text-muted); opacity: 0.6;">📦</span>`;
       }
     }
     document.getElementById('itm-code').textContent = item.itemCode;
@@ -400,11 +406,20 @@ export async function renderItemDetail(container, params) {
       const content = `
         <form id="form-attach-barcode">
           <div class="form-group">
-            <label class="form-label">Barcode Value</label>
-            <input type="text" id="inp-bar-val" class="form-control" placeholder="Leave empty to auto-generate internal ITM-XXXXXX">
+            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>قيمة الباركود / Barcode Value</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">(اتركه فارغاً للتوليد التلقائي)</span>
+            </label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="inp-bar-val" class="form-control" placeholder="امسح الباركود بالكاميرا أو اكتبه هنا...">
+              <button type="button" class="btn btn-primary" id="btn-scan-attach-barcode" style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; font-weight: 600;" title="مسح بالكاميرا">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                <span>مسح</span>
+              </button>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Barcode Type</label>
+            <label class="form-label">نوع الباركود / Barcode Type</label>
             <select id="inp-bar-type" class="form-select">
               <option value="CODE-128">CODE-128</option>
               <option value="EAN-13">EAN-13</option>
@@ -414,17 +429,17 @@ export async function renderItemDetail(container, params) {
         </form>
       `;
 
-      showModal({
-        title: `Attach Barcode to ${escapeHtml(item.name || '')}`,
+      const attachModal = showModal({
+        title: `ربط باركود جديد بـ ${escapeHtml(item.name || '')}`,
         content,
-        confirmText: 'Attach Barcode',
+        confirmText: 'ربط وتثبيت الباركود',
         onConfirm: async () => {
           const code = document.getElementById('inp-bar-val').value.trim() || undefined;
           const type = document.getElementById('inp-bar-type').value;
 
           try {
             await api.post(`/items/${itemId}/barcodes`, { code, type });
-            showToast('Barcode attached successfully', 'success');
+            showToast('تم ربط الباركود بالمادة بنجاح', 'success');
             renderItemDetail(container, params);
             return true;
           } catch (err) {
@@ -432,6 +447,19 @@ export async function renderItemDetail(container, params) {
             return false;
           }
         }
+      });
+
+      attachModal.querySelector('#btn-scan-attach-barcode')?.addEventListener('click', () => {
+        openBarcodeScannerModal({
+          title: 'مسح الباركود لربطه بالمادة',
+          onScan: (scannedCode) => {
+            const barInput = attachModal.querySelector('#inp-bar-val');
+            if (barInput) {
+              barInput.value = scannedCode;
+              showToast(`تم مسح الباركود: ${scannedCode}`, 'success');
+            }
+          }
+        });
       });
     });
 

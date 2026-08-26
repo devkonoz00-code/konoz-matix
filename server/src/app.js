@@ -49,6 +49,8 @@ app.use(helmet({
         "'self'",
         'data:',
         'blob:',
+        'https:',
+        'http:',
         'https://res.cloudinary.com',
       ],
       connectSrc: ["'self'"],

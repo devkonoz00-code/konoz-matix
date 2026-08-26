@@ -48,8 +48,8 @@ export function escapeHtml(unsafeStr) {
 
 /**
  * Normalizes stored image references for safe browser loading.
- * Legacy Cloudinary URLs may be protocol-relative or use HTTP, while local
- * uploads may be stored with or without a leading slash.
+ * Handles Cloudinary HTTPS URLs, local /uploads/ paths, data URIs, and full URLs without
+ * breaking local HTTP origins or throwing protocol errors.
  *
  * @param {string} url - Raw image URL stored on the item
  * @returns {string} A browser-loadable URL, or an empty string when invalid
@@ -62,18 +62,229 @@ export function formatImageUrl(url) {
     return '';
   }
 
-  if (clean.startsWith('http://')) {
-    clean = `https://${clean.slice(7)}`;
-  } else if (clean.startsWith('//')) {
-    clean = `https:${clean}`;
-  } else if (clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com')) {
-    clean = `https://${clean}`;
-  } else if (!clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:')) {
-    clean = clean.startsWith('/') ? clean : `/${clean}`;
+  // Handle data URIs and blob URLs directly
+  if (clean.startsWith('data:') || clean.startsWith('blob:')) {
+    return clean;
   }
 
-  return clean;
+  // Normalize Cloudinary delivery URLs to HTTPS
+  if (clean.startsWith('//res.cloudinary.com') || clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com')) {
+    return `https://${clean.replace(/^\/\//, '')}`;
+  }
+  if (clean.startsWith('http://res.cloudinary.com/')) {
+    return `https://${clean.slice(7)}`;
+  }
+
+  // Handle local uploads directory paths
+  if (clean.startsWith('/uploads/') || clean.startsWith('uploads/')) {
+    return clean.startsWith('/') ? clean : `/${clean}`;
+  }
+
+  // Return full URLs as-is (http or https)
+  if (clean.startsWith('https://') || clean.startsWith('http://')) {
+    return clean;
+  }
+
+  // Fallback relative path
+  return clean.startsWith('/') ? clean : `/${clean}`;
 }
+
+/**
+ * Opens an in-platform image lightbox modal to view product photos enlarged with high clarity.
+ */
+export function openImageLightboxModal(imageUrl, title = 'صورة المادة / Item Photo') {
+  const formattedUrl = formatImageUrl(imageUrl);
+  if (!formattedUrl) return;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.style.cssText = 'z-index: 10000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); padding: 1rem;';
+  backdrop.innerHTML = `
+    <div style="position: relative; max-width: 90vw; max-height: 90vh; background: var(--bg-surface, #1e293b); border-radius: var(--radius-md, 8px); overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid var(--border-subtle, #334155); display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-subtle, #334155); background: var(--bg-surface-elevated, #0f172a);">
+        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary, #fff);">${escapeHtml(title)}</h4>
+        <button type="button" class="icon-button modal-lightbox-close" style="width: 32px; height: 32px; font-size: 1.25rem; color: var(--text-muted, #94a3b8); cursor: pointer; background: transparent; border: none; border-radius: 4px; display: flex; align-items: center; justify-content: center;">&times;</button>
+      </div>
+      <div style="padding: 1rem; display: flex; align-items: center; justify-content: center; overflow: auto; background: #020617; max-height: calc(90vh - 60px);">
+        <img src="${escapeHtml(formattedUrl)}" alt="${escapeHtml(title)}" style="max-width: 100%; max-height: 75vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);">
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  const close = () => {
+    backdrop.style.opacity = '0';
+    backdrop.style.transition = 'opacity 0.2s ease';
+    setTimeout(() => backdrop.remove(), 200);
+  };
+
+  backdrop.querySelector('.modal-lightbox-close')?.addEventListener('click', close);
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) close();
+  });
+
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      close();
+      window.removeEventListener('keydown', onKey);
+    }
+  };
+  window.addEventListener('keydown', onKey);
+}
+
+/**
+ * Opens a full-screen or modal camera barcode scanner popup.
+ * Automatically initializes camera, detects 1D/2D barcodes/QRs, plays chime,
+ * invokes callback with scanned code, and cleanly stops the camera.
+ */
+export async function openBarcodeScannerModal({ onScan, title = 'مسح باركود بالكاميرا / Scan Barcode' }) {
+  const modalId = 'scanner_modal_' + Date.now();
+  const readerId = 'modal-qr-reader-' + Date.now();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.style.cssText = 'z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+  backdrop.innerHTML = `
+    <div class="modal-dialog" style="max-width: 520px; width: 100%;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+          <span>${escapeHtml(title)}</span>
+        </h3>
+        <button type="button" class="icon-button modal-close-btn" style="width: 32px; height: 32px;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1rem;">
+        <p style="font-size: 0.83rem; color: var(--text-secondary); margin-bottom: 0.75rem; text-align: center;">
+          وجه كاميرا هاتفك أو جهازك نحو الباركود الأصلي المطبوع على المادة ليتم التقاطه تلقائياً.
+        </p>
+
+        <!-- Viewport Container -->
+        <div style="position: relative; width: 100%; min-height: 250px; background: #0f172a; border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--border-subtle); display: flex; align-items: center; justify-content: center;">
+          <div id="${readerId}" style="width: 100%; height: 100%;"></div>
+          <div id="laser-${modalId}" style="position: absolute; left: 5%; right: 5%; height: 2px; background: #3b82f6; box-shadow: 0 0 10px #3b82f6; z-index: 10; animation: scanLineAnim 2s infinite ease-in-out;"></div>
+        </div>
+
+        <div id="status-${modalId}" style="margin-top: 0.75rem; font-size: 0.8rem; text-align: center; color: var(--text-muted);">
+          جاري تشغيل الكاميرا...
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: var(--text-muted);">يدعم EAN-13, CODE-128, QR, UPC</span>
+        <button type="button" class="btn btn-secondary modal-cancel-btn">إلغاء / Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  let html5ScannerInstance = null;
+  let isClosed = false;
+
+  const cleanupAndClose = async () => {
+    if (isClosed) return;
+    isClosed = true;
+    if (html5ScannerInstance) {
+      try {
+        if (html5ScannerInstance.isScanning) {
+          await html5ScannerInstance.stop();
+        }
+        await html5ScannerInstance.clear();
+      } catch (e) {
+        console.warn('Error stopping camera:', e);
+      }
+    }
+    backdrop.remove();
+  };
+
+  backdrop.querySelector('.modal-close-btn')?.addEventListener('click', cleanupAndClose);
+  backdrop.querySelector('.modal-cancel-btn')?.addEventListener('click', cleanupAndClose);
+
+  // Initialize camera scanner
+  try {
+    if (typeof Html5Qrcode === 'undefined') {
+      const statusEl = backdrop.querySelector(`#status-${modalId}`);
+      if (statusEl) statusEl.textContent = 'تحميل مكتبة الكاميرا...';
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = './js/html5-qrcode.min.js';
+        s.onload = resolve;
+        s.onerror = () => {
+          const s2 = document.createElement('script');
+          s2.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+          s2.onload = resolve;
+          s2.onerror = reject;
+          document.head.appendChild(s2);
+        };
+        document.head.appendChild(s);
+      });
+    }
+
+    if (isClosed) return;
+
+    let formats = undefined;
+    if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+      formats = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_39,
+      ];
+    }
+
+    html5ScannerInstance = new Html5Qrcode(readerId, {
+      formatsToSupport: formats,
+      verbose: false,
+    });
+
+    const qrboxSize = Math.min(260, window.innerWidth - 60);
+
+    await html5ScannerInstance.start(
+      { facingMode: 'environment' },
+      {
+        fps: 20,
+        qrbox: { width: qrboxSize, height: Math.round(qrboxSize * 0.65) },
+        aspectRatio: 1.33,
+      },
+      (decodedText, decodedResult) => {
+        if (isClosed) return;
+        playSuccessChime();
+        if (navigator.vibrate) {
+          try { navigator.vibrate(100); } catch {}
+        }
+        cleanupAndClose();
+        if (typeof onScan === 'function') {
+          onScan(decodedText.trim(), decodedResult);
+        }
+      },
+      () => {
+        // Scanning frame tick (silent)
+      }
+    );
+
+    if (isClosed) {
+      await html5ScannerInstance.stop();
+      return;
+    }
+
+    const statusEl = backdrop.querySelector(`#status-${modalId}`);
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color: var(--success); font-weight: 600;">📷 الكاميرا جاهزة — وجّه العدسة نحو الباركود</span>';
+    }
+  } catch (cameraErr) {
+    console.error('Camera start error:', cameraErr);
+    const statusEl = backdrop.querySelector(`#status-${modalId}`);
+    if (statusEl) {
+      statusEl.innerHTML = `
+        <span style="color: var(--danger); font-weight: 600;">⚠️ تعذر الوصول إلى الكاميرا (${escapeHtml(cameraErr.message || 'إذن الكاميرا مرفوض')}). يمكنك إدخال الباركود يدوياً.</span>
+      `;
+    }
+  }
+}
+
 
 // ==========================================================================
 // UI Helpers (Toasts, Modals, Formatters)

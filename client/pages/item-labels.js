@@ -168,11 +168,20 @@ export async function renderItemLabels(container, params) {
           const barcodeSvg = document.getElementById(`barcode-svg-${cardId}`);
           const qrCanvas = document.getElementById(`qr-canvas-${cardId}`);
 
-          // 1. Render Barcode (1D Symbol)
+          // 1. Render Barcode (1D Symbol) with intelligent format detection
           if (typeof JsBarcode !== 'undefined' && barcodeSvg) {
+            const cleanVal = barcodeValue.replace(/\s+/g, '');
+            let format = 'CODE128';
+            if (it.barcodeType === 'EAN-13' || (/^\d{13}$/.test(cleanVal) && cleanVal.length === 13)) {
+              format = 'EAN13';
+            } else if (it.barcodeType === 'EAN-8' || (/^\d{8}$/.test(cleanVal) && cleanVal.length === 8)) {
+              format = 'EAN8';
+            } else if (it.barcodeType === 'UPC' || (/^\d{12}$/.test(cleanVal) && cleanVal.length === 12)) {
+              format = 'UPC';
+            }
+
             try {
-              const format = (it.barcodeType === 'EAN-13' && barcodeValue.length === 13) ? 'EAN13' : 'CODE128';
-              JsBarcode(barcodeSvg, barcodeValue, {
+              JsBarcode(barcodeSvg, cleanVal, {
                 format,
                 lineColor: '#0f172a',
                 width: 1.4,

@@ -3,7 +3,7 @@
  * Full search, filters, multi-select batch label printing, initial stock allocation to warehouses, and update stock receipt.
  */
 import { api } from '../js/api.js';
-import { formatMoney, showToast, showModal, escapeHtml, formatImageUrl } from '../js/app.js';
+import { formatMoney, showToast, showModal, escapeHtml, formatImageUrl, openBarcodeScannerModal, openImageLightboxModal } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
 
@@ -237,14 +237,13 @@ export async function renderItems(container) {
         `;
       }).join('');
 
-      // Cloudinary/local delivery errors should affect only the thumbnail and
-      // must not hide the rest of the product row.
+      // Cloudinary/local delivery errors fallback to clean package icon
       tbody.querySelectorAll('.item-thumbnail-image').forEach(image => {
         image.addEventListener('error', () => {
           const wrapper = image.closest('.item-photo-link');
           if (wrapper) {
-            wrapper.title = 'تعذر تحميل صورة المنتج';
-            wrapper.innerHTML = '<span aria-hidden="true" style="font-size: 1.35rem;">⚠️</span>';
+            wrapper.title = 'لا تتوفر صورة';
+            wrapper.innerHTML = '<span aria-hidden="true" style="font-size: 1.35rem; opacity: 0.6;">📦</span>';
           }
         }, { once: true });
       });
@@ -474,8 +473,20 @@ export async function renderItems(container) {
         </div>
 
         <div class="form-group">
-          <label class="form-label">الباركود / QR (اختياري - يولد تلقائياً ITM-XXXXXX إذا ترك فارغاً)</label>
-          <input type="text" id="inp-item-barcode" class="form-control" placeholder="اتركه فارغاً للتوليد التلقائي لرمز ITM-XXXXXX">
+          <label class="form-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span>كود بار المادة الأصلي / Original Barcode</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(يولد تلقائياً ITM-XXXXXX إذا ترك فارغاً)</span>
+          </label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="inp-item-barcode" class="form-control" placeholder="امسح الباركود الأصلي بالكاميرا أو اكتبه هنا...">
+            <button type="button" class="btn btn-primary" id="btn-scan-item-barcode" style="display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; padding: 0.5rem 0.85rem; font-weight: 600;" title="مسح الباركود بالكاميرا">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+              <span>مسح بالكاميرا</span>
+            </button>
+          </div>
+          <div id="scanned-barcode-badge" style="display: none; margin-top: 0.4rem; font-size: 0.8rem; color: var(--success); background: rgba(16, 185, 129, 0.1); padding: 0.4rem 0.65rem; border-radius: var(--radius-sm); border: 1px solid rgba(16, 185, 129, 0.3);">
+            ✅ <strong>تم مسح الباركود الأصلي:</strong> <span id="scanned-barcode-val" style="font-family: var(--font-mono); font-weight: 700;"></span>
+          </div>
         </div>
       </form>
     `;
@@ -614,6 +625,26 @@ export async function renderItems(container) {
         inlineSaveBtn.disabled = false;
         inlineSaveBtn.innerHTML = origText;
       }
+    });
+
+    // Camera Barcode Scanner for Original Barcode
+    modal.querySelector('#btn-scan-item-barcode')?.addEventListener('click', () => {
+      openBarcodeScannerModal({
+        title: 'مسح كود بار المادة الأصلي',
+        onScan: (scannedCode) => {
+          const barcodeInput = modal.querySelector('#inp-item-barcode');
+          if (barcodeInput) {
+            barcodeInput.value = scannedCode;
+            const badge = modal.querySelector('#scanned-barcode-badge');
+            const badgeVal = modal.querySelector('#scanned-barcode-val');
+            if (badge && badgeVal) {
+              badgeVal.textContent = scannedCode;
+              badge.style.display = 'block';
+            }
+            showToast(`تم مسح الباركود الأصلي بنجاح: ${scannedCode}`, 'success');
+          }
+        }
+      });
     });
 
     // Image preview handlers for gallery and camera inputs

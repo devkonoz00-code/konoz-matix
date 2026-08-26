@@ -4,7 +4,7 @@
  * Renders live camera feed, manual entry, item identity, location, valuation, and contextual action triggers.
  */
 import { api } from '../js/api.js';
-import { formatMoney, formatDate, showToast, showModal, escapeHtml, formatImageUrl, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
+import { formatMoney, formatDate, showToast, showModal, escapeHtml, formatImageUrl, openImageLightboxModal, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 import { router } from '../js/router.js';
 
@@ -319,14 +319,20 @@ export function renderScanner(container) {
         `;
       }
 
-      // Build item photo HTML
+      // Build item photo HTML with in-app zoom
       const formattedImgUrl = formatImageUrl(item.imageUrl);
       const itemPhotoHtml = formattedImgUrl
-        ? `<div style="text-align: center; margin-bottom: 1.25rem; display: flex; justify-content: center;" id="scanner-item-photo-wrapper">
-            <img src="${escapeHtml(formattedImgUrl)}" alt="${escapeHtml(item.name || '')}" style="max-height: 220px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm); padding: 4px;" id="scanner-item-img">
+        ? `<div style="text-align: center; margin-bottom: 1.25rem; display: flex; justify-content: center; position: relative;" id="scanner-item-photo-wrapper">
+            <div style="position: relative; display: inline-block; cursor: pointer; max-width: 100%;" id="btn-zoom-scanner-img" title="اضغط لتكبير الصورة داخل المنصة">
+              <img src="${escapeHtml(formattedImgUrl)}" alt="${escapeHtml(item.name || '')}" loading="eager" decoding="async" style="max-height: 240px; max-width: 100%; border-radius: var(--radius-md); object-fit: contain; background: #0f172a; border: 2px solid var(--border-subtle); box-shadow: var(--shadow-md); padding: 4px; display: block;" id="scanner-item-img">
+              <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); color: #fff; padding: 3px 7px; border-radius: 4px; font-size: 0.72rem; display: flex; align-items: center; gap: 0.3rem; pointer-events: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+                <span>تكبير</span>
+              </div>
+            </div>
           </div>`
         : `<div style="text-align: center; margin-bottom: 1rem;">
-            <div style="width: 100%; height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>
+            <div style="width: 100%; height: 130px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2.5rem; border: 1px solid var(--border-subtle);">📦</div>
           </div>`;
 
       resultContainer.innerHTML = `
@@ -390,10 +396,23 @@ export function renderScanner(container) {
       `;
 
       const scannerImg = resultContainer.querySelector('#scanner-item-img');
+      const zoomBtn = resultContainer.querySelector('#btn-zoom-scanner-img');
+
+      zoomBtn?.addEventListener('click', () => {
+        if (formattedImgUrl) {
+          openImageLightboxModal(formattedImgUrl, item.name || 'صورة المادة');
+        }
+      });
+
       scannerImg?.addEventListener('error', () => {
         const wrapper = resultContainer.querySelector('#scanner-item-photo-wrapper');
         if (wrapper) {
-          wrapper.innerHTML = `<a href="${escapeHtml(formattedImgUrl)}" target="_blank" rel="noopener noreferrer" style="width: 100%; min-height: 140px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 0.4rem; align-items: center; justify-content: center; color: var(--warning); text-decoration: none; border: 1px solid var(--border-subtle);"><span style="font-size: 2rem;">⚠️</span><span style="font-size: 0.8rem;">تعذر عرض الصورة — فتح الرابط</span></a>`;
+          wrapper.innerHTML = `
+            <div style="width: 100%; min-height: 120px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 0.3rem; align-items: center; justify-content: center; color: var(--text-muted); border: 1px solid var(--border-subtle);">
+              <span style="font-size: 2.2rem; opacity: 0.7;">📦</span>
+              <span style="font-size: 0.78rem;">لا تتوفر صورة لهذه المادة</span>
+            </div>
+          `;
         }
       }, { once: true });
 

@@ -1530,6 +1530,7 @@ html[dir="rtl"] .toast-container {
 .login-hero-title .gradient-text {
   background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -2586,3 +2587,20 @@ html[dir="rtl"] #btn-login-arrow {
     transition: none;
   }
 }
+
+/* Camera Scanner Laser Animation & Viewport */
+@keyframes scanLineAnim {
+  0% {
+    top: 15%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 85%;
+    opacity: 1;
+  }
+  100% {
+    top: 15%;
+    opacity: 0.8;
+  }
+}
+

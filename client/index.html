@@ -26,7 +26,7 @@
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=2.0.1">
+  <link rel="stylesheet" href="./css/main.css?v=2.0.2">
 
   <!-- Barcode & QR Code Engines (Local + CDN Fallback) -->
   <script src="./js/qr-helper.js"></script>
@@ -46,8 +46,8 @@
           <h1>MATIX</h1>
           <span data-i18n="app_tagline">Project Logistics</span>
         </div>
-        <button class="icon-button mobile-only" id="btn-close-sidebar" aria-label="Close Menu" style="margin-left: auto;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <button class="icon-button mobile-only" id="btn-close-sidebar" aria-label="Close Menu" onclick="window.closeMobileMenu && window.closeMobileMenu()" style="margin-left: auto;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
@@ -117,15 +117,15 @@
         </div>
       </div>
     </aside>
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="window.closeMobileMenu && window.closeMobileMenu()"></div>
 
     <!-- Main Content Area -->
     <div class="main-wrapper">
       <!-- Top Sticky Header -->
       <header class="top-header">
         <div class="header-left">
-          <button class="icon-button mobile-only" id="btn-toggle-sidebar" aria-label="Toggle Menu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <button class="icon-button mobile-only" id="btn-toggle-sidebar" aria-label="Toggle Menu" onclick="window.toggleMobileMenu && window.toggleMobileMenu()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <h2 class="page-header-title" id="page-title">Dashboard</h2>
         </div>
@@ -185,6 +185,6 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- App Bootstrap JS -->
-  <script type="module" src="./js/app.js?v=2.0.1"></script>
+  <script type="module" src="./js/app.js?v=2.0.2"></script>
 </body>
 </html>

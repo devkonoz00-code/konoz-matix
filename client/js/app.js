@@ -29,6 +29,30 @@ import { playSound, playSuccessChime, playConfirmBeep, playErrorTone } from './s
 // Export sound functions for direct use across modules
 export { playSound, playSuccessChime, playConfirmBeep, playErrorTone };
 
+// Immediate global mobile menu handlers (works synchronously on touch/click)
+window.toggleMobileMenu = function() {
+  const sb = document.getElementById('app-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sb) return;
+  if (sb.classList.contains('mobile-open')) {
+    sb.classList.remove('mobile-open');
+    ov?.classList.remove('active');
+    document.body.style.overflow = '';
+  } else {
+    sb.classList.add('mobile-open');
+    ov?.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+};
+
+window.closeMobileMenu = function() {
+  const sb = document.getElementById('app-sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  sb?.classList.remove('mobile-open');
+  ov?.classList.remove('active');
+  document.body.style.overflow = '';
+};
+
 /**
  * Escapes unsafe characters in strings to prevent Stored/DOM-based XSS attacks.
  * Safe for inserting dynamic values into HTML templates and attributes.

@@ -57,26 +57,39 @@ export function renderScanner(container) {
   const startBtn = document.getElementById('btn-start-camera');
   const stopBtn = document.getElementById('btn-stop-camera');
 
+  startBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    startScanner();
+  });
+  stopBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    stopScanner();
+  });
+
   function showReaderError(message, showRetry = true) {
     const reader = document.getElementById('reader');
     if (!reader) return;
+    if (html5QrCode) {
+      try { html5QrCode.clear(); } catch (_) {}
+      html5QrCode = null;
+    }
     reader.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 260px; padding: 1.5rem; text-align: center;">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.8;">
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
         <p style="color: #f87171; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem;">${message}</p>
-        ${showRetry ? '<button class="btn btn-sm btn-primary" id="btn-retry-scanner" style="margin-top: 0.75rem;">Tap to Retry</button>' : ''}
+        ${showRetry ? '<button type="button" class="btn btn-sm btn-primary" id="btn-retry-scanner" style="margin-top: 0.75rem;">🔄 إعادة المحاولة / Tap to Retry</button>' : ''}
       </div>
     `;
     if (showRetry) {
-      document.getElementById('btn-retry-scanner')?.addEventListener('click', () => {
-        reader.innerHTML = '<div id="scanner-laser-line" style="display:none;"></div>';
+      document.getElementById('btn-retry-scanner')?.addEventListener('click', (e) => {
+        e.preventDefault();
         startScanner();
       });
     }
-    startBtn.style.display = 'inline-flex';
-    stopBtn.style.display = 'none';
+    if (startBtn) startBtn.style.display = 'inline-flex';
+    if (stopBtn) stopBtn.style.display = 'none';
   }
 
   function loadScript(src) {
@@ -130,73 +143,99 @@ export function renderScanner(container) {
   let isScanningActive = false;
 
   async function startScanner() {
+    const reader = document.getElementById('reader');
+    if (!reader) return;
+
+    // 1. Cleanly stop any existing scanner instance
+    if (html5QrCode) {
+      try {
+        if (html5QrCode.isScanning) {
+          await html5QrCode.stop();
+        }
+        await html5QrCode.clear();
+      } catch (_) {}
+      html5QrCode = null;
+    }
+
+    // 2. Reset reader DOM container
+    reader.innerHTML = '<div style="position: absolute; left: 0; right: 0; height: 2px; background: #2563eb; top: 50%; box-shadow: 0 0 8px #2563eb; display: none;" id="scanner-laser-line"></div>';
+
     try {
       await waitForLibrary(8000);
     } catch (_) {
       console.error('html5-qrcode library failed to load within timeout');
-      showReaderError('Camera scanner library failed to load. Check your internet connection and try again.');
+      showReaderError('تعذر تحميل مكتبة الكاميرا. يرجى التحقق من اتصال الإنترنت.');
       return;
     }
 
     try {
-      if (!html5QrCode) {
-        let formatsToSupport = undefined;
-        if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
-          formatsToSupport = [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.CODE_93,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.DATA_MATRIX,
-            Html5QrcodeSupportedFormats.AZTEC,
-          ];
-        }
-
-        html5QrCode = new Html5Qrcode('reader', {
-          formatsToSupport,
-          verbose: false,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
-        });
+      let formatsToSupport = undefined;
+      if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+        formatsToSupport = [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.AZTEC,
+        ];
       }
+
+      html5QrCode = new Html5Qrcode('reader', {
+        formatsToSupport,
+        verbose: false,
+      });
 
       isScanningActive = true;
 
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-          fps: 15,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.75);
-            const size = Math.max(edge, 200);
-            return { width: size, height: size };
-          },
-        },
-        onScanSuccess,
-        (_errorMessage) => {}
-      );
+      const qrboxSize = (viewfinderWidth, viewfinderHeight) => {
+        const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.75);
+        const size = Math.max(edge, 200);
+        return { width: size, height: size };
+      };
 
-      startBtn.style.display = 'none';
-      stopBtn.style.display = 'inline-flex';
+      // Try back camera first, fallback to user camera
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 15, qrbox: qrboxSize },
+          onScanSuccess,
+          () => {}
+        );
+      } catch (envErr) {
+        console.warn('Environment camera failed, trying fallback camera:', envErr);
+        await html5QrCode.start(
+          { facingMode: 'user' },
+          { fps: 15, qrbox: qrboxSize },
+          onScanSuccess,
+          () => {}
+        );
+      }
+
+      if (startBtn) startBtn.style.display = 'none';
+      if (stopBtn) stopBtn.style.display = 'inline-flex';
       const laser = document.getElementById('scanner-laser-line');
       if (laser) laser.style.display = 'block';
 
     } catch (err) {
       isScanningActive = false;
       console.warn('Camera start error:', err);
+      if (html5QrCode) {
+        try { html5QrCode.clear(); } catch (_) {}
+        html5QrCode = null;
+      }
       const errStr = String(err?.message || err || '').toLowerCase();
       if (errStr.includes('notallowed') || errStr.includes('permission')) {
-        showReaderError('Camera permission denied. Please allow camera access in your browser settings, then tap retry.');
+        showReaderError('تم رفض إذن الكاميرا. يرجى السماح بالوصول للكاميرا من إعدادات المتصفح ثم إعادة المحاولة.');
       } else if (errStr.includes('notfound') || errStr.includes('device')) {
-        showReaderError('No camera found on this device. Try using a device with a camera, or use manual entry below.', false);
+        showReaderError('لم يتم العثور على كاميرا في هذا الجهاز. يمكنك إدخال الباركود يدوياً في الأسفل.', false);
       } else {
-        showReaderError("Camera didn't start — tap to retry.");
+        showReaderError("تعذر تشغيل الكاميرا — اضغط لإعادة المحاولة.");
       }
     }
   }
@@ -215,8 +254,8 @@ export function renderScanner(container) {
         html5QrCode.clear();
       } catch (_) {}
       html5QrCode = null;
-      startBtn.style.display = 'inline-flex';
-      stopBtn.style.display = 'none';
+      if (startBtn) startBtn.style.display = 'inline-flex';
+      if (stopBtn) stopBtn.style.display = 'none';
       const laser = document.getElementById('scanner-laser-line');
       if (laser) laser.style.display = 'none';
     }

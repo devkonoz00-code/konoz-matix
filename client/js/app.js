@@ -648,49 +648,47 @@ async function initApp() {
     router.navigate('/login');
   });
 
-  // Mobile menu controls
-  const sidebar = document.getElementById('app-sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-  const toggleBtn = document.getElementById('btn-toggle-sidebar');
-  const closeBtn = document.getElementById('btn-close-sidebar');
-
-  function openSidebar() {
-    sidebar?.classList.add('mobile-open');
-    overlay?.classList.add('active');
+  // Bulletproof Mobile Menu Controls
+  function openMobileSidebar() {
+    const sb = document.getElementById('app-sidebar');
+    const ov = document.getElementById('sidebar-overlay');
+    sb?.classList.add('mobile-open');
+    ov?.classList.add('active');
   }
 
-  function closeSidebar() {
-    sidebar?.classList.remove('mobile-open');
-    overlay?.classList.remove('active');
+  function closeMobileSidebar() {
+    const sb = document.getElementById('app-sidebar');
+    const ov = document.getElementById('sidebar-overlay');
+    sb?.classList.remove('mobile-open');
+    ov?.classList.remove('active');
   }
 
-  const handleToggle = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (sidebar?.classList.contains('mobile-open')) {
-      closeSidebar();
-    } else {
-      openSidebar();
-    }
-  };
-
-  toggleBtn?.addEventListener('click', handleToggle);
-  closeBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    closeSidebar();
-  });
-  overlay?.addEventListener('click', (e) => {
-    e.preventDefault();
-    closeSidebar();
-  });
-
-  // Close mobile sidebar automatically whenever any navigation link is clicked
-  sidebar?.querySelectorAll('.sidebar-nav a').forEach((link) => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth <= 900) {
-        closeSidebar();
+  // Delegated click on document for guaranteed responsiveness across all pages & languages
+  document.addEventListener('click', (e) => {
+    const toggle = e.target.closest('#btn-toggle-sidebar');
+    if (toggle) {
+      e.preventDefault();
+      e.stopPropagation();
+      const sb = document.getElementById('app-sidebar');
+      if (sb?.classList.contains('mobile-open')) {
+        closeMobileSidebar();
+      } else {
+        openMobileSidebar();
       }
-    });
+      return;
+    }
+
+    const close = e.target.closest('#btn-close-sidebar');
+    if (close || e.target.id === 'sidebar-overlay') {
+      e.preventDefault();
+      closeMobileSidebar();
+      return;
+    }
+
+    // Auto-close when clicking any navigation link on mobile
+    if (window.innerWidth <= 900 && e.target.closest('#app-sidebar a')) {
+      closeMobileSidebar();
+    }
   });
 
   // Start Router

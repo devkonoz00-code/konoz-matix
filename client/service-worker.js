@@ -1,49 +1,23 @@
-const CACHE_NAME = 'matix-v1.1.2';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './css/main.css',
-  './js/app.js',
-  './js/api.js',
-  './js/router.js',
-  './js/i18n.js',
-  './js/qr-helper.js',
-  './js/html5-qrcode.min.js',
-  './pages/login.js',
-  './pages/scanner.js',
-  './js/locales/en.json',
-  './js/locales/fr.json',
-  './js/locales/ar.json'
-];
+const CACHE_NAME = 'matix-v2.0.0';
 
-// Install Event - cache shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('Some cache assets failed to fetch in offline setup:', err);
-      });
-    })
-  );
+// Install: skip waiting immediately, do NOT pre-cache anything
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Activate Event - clean old caches
+// Activate: delete ALL old caches aggressively, then claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
+      return Promise.all(keys.map((key) => caches.delete(key)));
     })
   );
   self.clients.claim();
 });
 
-// Fetch Event - Network first for APIs, network first for images, cache fallback for assets
+// Fetch: pass everything straight to the network.
+// Only intercept API calls to show a friendly offline message.
 self.addEventListener('fetch', (event) => {
-  // Never cache API requests (keep movement ledger strictly live)
   if (event.request.url.includes('/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => {
@@ -63,75 +37,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (event.request.method !== 'GET') {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-
-  const requestUrl = new URL(event.request.url);
-
-  // Images and CDN media: ALWAYS Network-first
-  if (
-    event.request.destination === 'image' ||
-    requestUrl.pathname.includes('/uploads/') ||
-    requestUrl.hostname.includes('cloudinary.com')
-  ) {
-    event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cached = await caches.match(event.request);
-        return cached || new Response('', { status: 404 });
-      })
-    );
-    return;
-  }
-
-  const isAppCode = (
-    event.request.mode === 'navigate' ||
-    ['script', 'style', 'worker'].includes(event.request.destination) ||
-    (
-      requestUrl.origin === self.location.origin &&
-      /\.(?:html|js|css)$/i.test(requestUrl.pathname)
-    )
-  );
-
-  // Application code must be network-first so a previous service worker
-  // cannot keep serving an old UI after a deployment. Cached copies remain
-  // available as an offline fallback.
-  if (isAppCode) {
-    event.respondWith(
-      fetch(event.request)
-        .then(async (networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            try {
-              const cache = await caches.open(CACHE_NAME);
-              await cache.put(event.request, networkResponse.clone());
-            } catch {
-              // A cache quota/write failure must never hide a valid response.
-            }
-          }
-          return networkResponse;
-        })
-        .catch(async () => {
-          const cachedResponse = await caches.match(event.request);
-          return cachedResponse || new Response('Application shell unavailable while offline.', { status: 503 });
-        })
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch background update
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    })
-  );
+  // Everything else: go directly to the network, no caching at all
 });
-

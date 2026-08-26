@@ -692,14 +692,11 @@ async function initApp() {
   checkNotifications();
   setInterval(checkNotifications, 30000);
 
-  // Aggressively purge ALL old service worker caches on every load
-  const CURRENT_SW_CACHE = 'matix-v1.1.2';
+  // Aggressively purge ALL caches on load to ensure zero stale image/code caching
   if ('caches' in window) {
     caches.keys().then((names) => {
       names.forEach((name) => {
-        if (name !== CURRENT_SW_CACHE) {
-          caches.delete(name);
-        }
+        caches.delete(name);
       });
     }).catch(() => {});
   }

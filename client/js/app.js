@@ -67,26 +67,27 @@ export function formatImageUrl(url) {
     return clean;
   }
 
-  // Normalize Cloudinary delivery URLs to HTTPS
-  if (clean.startsWith('//res.cloudinary.com') || clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com')) {
-    return `https://${clean.replace(/^\/\//, '')}`;
-  }
-  if (clean.startsWith('http://res.cloudinary.com/')) {
-    return `https://${clean.slice(7)}`;
+  // Protocol-relative URLs (e.g. //res.cloudinary.com/...)
+  if (clean.startsWith('//')) {
+    clean = `https:${clean}`;
   }
 
-  // Handle local uploads directory paths
-  if (clean.startsWith('/uploads/') || clean.startsWith('uploads/')) {
-    return clean.startsWith('/') ? clean : `/${clean}`;
+  // Convert HTTP to HTTPS (required for production on HTTPS / Render)
+  if (clean.startsWith('http://')) {
+    clean = `https://${clean.slice(7)}`;
   }
 
-  // Return full URLs as-is (http or https)
-  if (clean.startsWith('https://') || clean.startsWith('http://')) {
-    return clean;
+  // Handle naked domain URLs like res.cloudinary.com/... or cloudinary.com/...
+  if (clean.startsWith('res.cloudinary.com') || clean.startsWith('cloudinary.com') || clean.startsWith('res-')) {
+    clean = `https://${clean}`;
   }
 
-  // Fallback relative path
-  return clean.startsWith('/') ? clean : `/${clean}`;
+  // Handle relative upload paths (e.g. uploads/... -> /uploads/...)
+  if (!clean.startsWith('https://') && !clean.startsWith('http://')) {
+    clean = clean.startsWith('/') ? clean : `/${clean}`;
+  }
+
+  return clean;
 }
 
 /**

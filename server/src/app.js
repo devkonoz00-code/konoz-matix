@@ -52,6 +52,8 @@ app.use(helmet({
         'https:',
         'http:',
         'https://res.cloudinary.com',
+        'https://*.cloudinary.com',
+        'https://*.cloudinary-a.akamaihd.net',
       ],
       connectSrc: ["'self'"],
       objectSrc: ["'none'"],

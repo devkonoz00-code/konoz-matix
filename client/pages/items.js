@@ -189,7 +189,7 @@ export async function renderItems(container) {
             <td style="text-align: center; padding: 0.45rem;">
               <a href="#/items/${itemId}" class="item-photo-link" aria-label="عرض تفاصيل ${itemName}" style="width: 52px; height: 52px; margin: 0 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); text-decoration: none;">
                 ${itemImageUrl
-                  ? `<img class="item-thumbnail-image" src="${itemImageUrl}" alt="${itemName}" loading="lazy" decoding="async" referrerpolicy="no-referrer" style="width: 100%; height: 100%; object-fit: cover;">`
+                  ? `<img class="item-thumbnail-image" src="${itemImageUrl}" alt="${itemName}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;">`
                   : '<span aria-hidden="true" style="font-size: 1.35rem;">📦</span>'}
               </a>
             </td>

@@ -3,7 +3,7 @@
  * Lists all projects with distinct Current Value and Total Consumption financial metrics.
  */
 import { api } from '../js/api.js';
-import { showToast, showModal, getStatusBadge, formatDate, formatMoney } from '../js/app.js';
+import { showToast, showModal, getStatusBadge, formatDate, formatMoney, escapeHtml } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderProjects(container) {
@@ -61,19 +61,22 @@ export async function renderProjects(container) {
         return;
       }
 
+      const currentUser = api.getCurrentUser();
+      const isAdmin = currentUser?.role === 'ADMIN';
+
       grid.innerHTML = projects.map(p => `
         <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
               <div>
-                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); font-weight: 600;">${p.projectCode}</span>
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;">${p.name}</h3>
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); font-weight: 600;">${escapeHtml(p.projectCode || '')}</span>
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;">${escapeHtml(p.name || '')}</h3>
               </div>
               ${getStatusBadge(p.status)}
             </div>
 
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.4;">
-              ${p.description || 'No description provided.'}
+              ${escapeHtml(p.description || 'No description provided.')}
             </p>
 
             <!-- Financial Layer (§9): Distinct Current Value & Total Consumption -->
@@ -89,18 +92,25 @@ export async function renderProjects(container) {
             </div>
 
             <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1.25rem;">
-              <div>📍 <strong>Location:</strong> ${p.location || 'Site not specified'}</div>
+              <div>📍 <strong>Location:</strong> ${escapeHtml(p.location || 'Site not specified')}</div>
               <div>📅 <strong>Timeline:</strong> ${p.startDate ? formatDate(p.startDate).split(',')[0] : '—'} → ${p.expectedEndDate ? formatDate(p.expectedEndDate).split(',')[0] : '—'}</div>
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 0.85rem;">
-            <a href="#/projects/${p._id}" class="btn btn-sm btn-primary">
-              <span data-i18n="btn_view_details">Site Material View</span> &rarr;
-            </a>
-            <button class="btn btn-sm btn-outline btn-assign-pm" data-id="${p._id}" data-name="${p.name}">
-              <span data-i18n="btn_assign_pm">Assign PM</span>
-            </button>
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <a href="#/projects/${p._id}" class="btn btn-sm btn-primary">
+                <span data-i18n="btn_view_details">Site Material View</span> &rarr;
+              </a>
+              <button class="btn btn-sm btn-outline btn-assign-pm" data-id="${p._id}" data-name="${escapeHtml(p.name || '')}">
+                <span data-i18n="btn_assign_pm">Assign PM</span>
+              </button>
+            </div>
+            ${isAdmin ? `
+              <button class="btn btn-sm btn-outline btn-delete-project" data-id="${p._id}" data-name="${escapeHtml(p.name || '')}" data-code="${escapeHtml(p.projectCode || '')}" title="حذف المشروع (للأدمن فقط)" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+                <span>🗑️ حذف</span>
+              </button>
+            ` : ''}
           </div>
         </div>
       `).join('');
@@ -108,6 +118,41 @@ export async function renderProjects(container) {
       // Bind Assign PM Buttons
       grid.querySelectorAll('.btn-assign-pm').forEach(btn => {
         btn.addEventListener('click', () => openAssignModal(btn.getAttribute('data-id'), btn.getAttribute('data-name')));
+      });
+
+      // Bind Delete Project Buttons (Admin only)
+      grid.querySelectorAll('.btn-delete-project').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const projectId = btn.getAttribute('data-id');
+          const projectName = btn.getAttribute('data-name') || '';
+          const projectCode = btn.getAttribute('data-code') || '';
+
+          showModal({
+            title: '⚠️ تأكيد حذف المشروع',
+            content: `
+              <p style="color: var(--text-primary); margin-bottom: 0.75rem;">
+                هل أنت متأكد من رغبتك في حذف وأرشفة المشروع <strong>${projectName}</strong> (${projectCode})؟
+              </p>
+              <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-sm); padding: 0.75rem;">
+                <p style="color: var(--danger); font-size: 0.82rem; margin-bottom: 0; line-height: 1.4;">
+                  ⚠️ <strong>تنبيه:</strong> سيتم أرشفة المشروع وإلغاء تعيينات مديري المشروع. يُشترط ألا يكون هناك أي رصيد مواد/مخزون حالي في موقع المشروع لحماية السجلات المالية وحركات المواد.
+                </p>
+              </div>
+            `,
+            confirmText: 'تأكيد وحذف المشروع',
+            onConfirm: async () => {
+              try {
+                await api.delete(`/projects/${projectId}`);
+                showToast(`تم حذف وأرشفة المشروع "${projectName}" بنجاح`, 'success');
+                loadProjects();
+                return true;
+              } catch (err) {
+                showToast(err.message, 'error');
+                return false;
+              }
+            },
+          });
+        });
       });
 
     } catch (err) {

@@ -65,6 +65,15 @@ const projectController = {
       next(error);
     }
   },
+
+  async delete(req, res, next) {
+    try {
+      const result = await projectService.delete(req.params.id, req);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = projectController;

@@ -11,5 +11,6 @@ router.get('/:id/materials', projectController.getMaterials);
 router.get('/:id/decharge', projectController.getDecharge);
 router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), projectController.create);
 router.patch('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'SUPERVISOR'), projectController.update);
+router.delete('/:id', authorize('ADMIN'), projectController.delete);
 
 module.exports = router;

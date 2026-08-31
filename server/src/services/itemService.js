@@ -145,6 +145,17 @@ const itemService = {
     const query = { isActive: true };
     if (filters.categoryId) query.categoryId = filters.categoryId;
     if (filters.itemType) query.itemType = filters.itemType;
+    if (filters.unit) query.unit = filters.unit;
+    if (filters.brand) {
+      const safeBrand = escapeRegex(filters.brand.trim());
+      query.brand = { $regex: safeBrand, $options: 'i' };
+    }
+    if (filters.minPrice || filters.maxPrice) {
+      query.unitPrice = {};
+      if (filters.minPrice) query.unitPrice.$gte = Number(filters.minPrice);
+      if (filters.maxPrice) query.unitPrice.$lte = Number(filters.maxPrice);
+      if (Object.keys(query.unitPrice).length === 0) delete query.unitPrice;
+    }
     if (filters.search) {
       const safeSearch = escapeRegex(filters.search.trim());
       query.$or = [
@@ -155,10 +166,24 @@ const itemService = {
       ];
     }
 
-    const items = await Item.find(query)
+    // Pagination: only paginate when page or limit is explicitly requested
+    const isPaginated = filters.page !== undefined || filters.limit !== undefined;
+    const page = isPaginated ? Math.max(1, parseInt(filters.page, 10) || 1) : 1;
+    const limit = isPaginated ? Math.min(200, Math.max(1, parseInt(filters.limit, 10) || 10)) : 0;
+    const skip = isPaginated ? (page - 1) * limit : 0;
+
+    let itemQuery = Item.find(query)
       .populate('categoryId', 'name')
-      .sort({ name: 1 })
-      .lean();
+      .sort({ name: 1 });
+
+    if (isPaginated && limit > 0) {
+      itemQuery = itemQuery.skip(skip).limit(limit);
+    }
+
+    const [total, items] = await Promise.all([
+      Item.countDocuments(query),
+      itemQuery.lean(),
+    ]);
 
     // Attach barcodes for each item
     const itemIds = items.map(i => i._id);
@@ -170,10 +195,18 @@ const itemService = {
       barcodeMap[key].push(b);
     });
 
-    return items.map(item => {
+    const enrichedItems = items.map(item => {
       item.barcodes = barcodeMap[item._id.toString()] || [];
       return item;
     });
+
+    return {
+      items: enrichedItems,
+      total,
+      page,
+      limit: isPaginated ? limit : total,
+      totalPages: isPaginated && limit > 0 ? Math.ceil(total / limit) : 1,
+    };
   },
 
   async getLabels(ids) {

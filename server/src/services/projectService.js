@@ -225,7 +225,43 @@ const projectService = {
       generatedAt: new Date(),
     };
   },
+
+  async delete(id, req) {
+    const project = await Project.findById(id);
+    if (!project) throw new AppError('Project not found', 404, 'NOT_FOUND');
+
+    // Safety check: prevent deleting projects with active inventory
+    const inventory = await stockService.getLocationInventory('PROJECT', id);
+    const hasStock = inventory.some(inv => inv.quantity > 0);
+    if (hasStock) {
+      throw new AppError(
+        'لا يمكن حذف مشروع يحتوي على مخزون حالي. قم بنقل أو سحب جميع المواد أولاً.',
+        400,
+        'PROJECT_HAS_STOCK'
+      );
+    }
+
+    const before = project.toJSON();
+
+    // Soft delete: archive the project
+    project.status = 'ARCHIVED';
+    await project.save();
+
+    // Deactivate all project assignments
+    const ProjectAssignment = require('../models/ProjectAssignment');
+    await ProjectAssignment.updateMany({ projectId: id, isActive: true }, { isActive: false });
+
+    await auditService.log({
+      userId: req.user._id,
+      action: 'DELETE',
+      entityType: 'Project',
+      entityId: project._id,
+      before,
+      req,
+    });
+
+    return { success: true, message: 'Project deleted successfully' };
+  },
 };
 
 module.exports = projectService;
-

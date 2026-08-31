@@ -84,13 +84,13 @@ export async function renderItems(container) {
 
     <!-- Search & Filters -->
     <div class="card" style="margin-bottom: 1.5rem; padding: 1rem;">
-      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
         <div style="flex: 1; min-width: 250px;">
           <input type="text" id="item-search" class="form-control" placeholder="Search by name, item code, barcode or brand...">
         </div>
         <div style="width: 180px;">
           <select id="item-type-filter" class="form-select">
-            <option value="">All Types</option>
+            <option value="">جميع الأنواع</option>
             <option value="MATERIAL">MATERIAL</option>
             <option value="EQUIPMENT">EQUIPMENT</option>
             <option value="TOOL">TOOL</option>
@@ -99,9 +99,57 @@ export async function renderItems(container) {
         </div>
         <div style="width: 200px;">
           <select id="item-category-filter" class="form-select">
-            <option value="">All Categories</option>
+            <option value="">جميع الأصناف</option>
           </select>
         </div>
+      </div>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="width: 160px;">
+          <select id="item-unit-filter" class="form-select">
+            <option value="">جميع الوحدات</option>
+            <option value="PIECE">PIECE (قطعة)</option>
+            <option value="BAG">BAG (كيس)</option>
+            <option value="KG">KG (كيلوغرام)</option>
+            <option value="TON">TON (طن)</option>
+            <option value="METER">METER (متر)</option>
+            <option value="CM">CM (سنتيمتر)</option>
+            <option value="SQM">SQM (متر مربع)</option>
+            <option value="CBM">CBM (متر مكعب)</option>
+            <option value="LITER">LITER (لتر)</option>
+            <option value="BOX">BOX (علبة)</option>
+            <option value="ROLL">ROLL (لفة)</option>
+          </select>
+        </div>
+        <div style="width: 180px;">
+          <select id="item-brand-filter" class="form-select">
+            <option value="">جميع الماركات</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="number" id="item-min-price" class="form-control" placeholder="السعر من" step="0.01" min="0" style="width: 120px;">
+          <span style="color: var(--text-muted); font-size: 0.85rem;">→</span>
+          <input type="number" id="item-max-price" class="form-control" placeholder="السعر إلى" step="0.01" min="0" style="width: 120px;">
+        </div>
+        <button class="btn btn-sm btn-outline" id="btn-clear-filters" title="مسح جميع الفلاتر" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3); height: 38px;">
+          <span>✕ مسح الفلاتر</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Info & Page Size -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+      <div id="items-results-info" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">
+        جاري التحميل...
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label style="font-size: 0.82rem; color: var(--text-muted); white-space: nowrap;">عدد العناصر:</label>
+        <select id="item-page-size" class="form-select" style="width: auto; min-width: 70px; padding: 0.3rem 0.5rem; font-size: 0.82rem;">
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
       </div>
     </div>
 
@@ -131,6 +179,9 @@ export async function renderItems(container) {
         </table>
       </div>
     </div>
+
+    <!-- Pagination -->
+    <div id="items-pagination" style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;"></div>
   `;
 
   i18n.translateDOM(container);
@@ -149,18 +200,140 @@ export async function renderItems(container) {
     }
   } catch {}
 
+  let currentPage = 1;
+  let searchDebounceTimer = null;
+
+  function renderPagination(pagination) {
+    const paginationContainer = document.getElementById('items-pagination');
+    if (!paginationContainer) return;
+    if (!pagination || pagination.totalPages <= 1) {
+      paginationContainer.innerHTML = '';
+      return;
+    }
+
+    const { page, totalPages } = pagination;
+    let html = '';
+
+    // Previous button
+    html += `
+      <button class="btn btn-sm btn-outline pagination-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
+        &larr; السابق
+      </button>
+    `;
+
+    // Page numbers
+    const maxButtons = 5;
+    let startPage = Math.max(1, page - 2);
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage < maxButtons - 1) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    if (startPage > 1) {
+      html += `<button class="btn btn-sm btn-outline pagination-btn" data-page="1">1</button>`;
+      if (startPage > 2) {
+        html += `<span style="padding: 0 0.3rem; color: var(--text-muted); font-size: 0.85rem;">...</span>`;
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      if (p === page) {
+        html += `<button class="btn btn-sm btn-primary pagination-btn" data-page="${p}" style="font-weight: 700;">${p}</button>`;
+      } else {
+        html += `<button class="btn btn-sm btn-outline pagination-btn" data-page="${p}">${p}</button>`;
+      }
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        html += `<span style="padding: 0 0.3rem; color: var(--text-muted); font-size: 0.85rem;">...</span>`;
+      }
+      html += `<button class="btn btn-sm btn-outline pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+
+    // Next button
+    html += `
+      <button class="btn btn-sm btn-outline pagination-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
+        التالي &rarr;
+      </button>
+    `;
+
+    paginationContainer.innerHTML = html;
+
+    paginationContainer.querySelectorAll('.pagination-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetPage = parseInt(btn.dataset.page, 10);
+        if (targetPage && targetPage >= 1 && targetPage <= totalPages && targetPage !== page) {
+          currentPage = targetPage;
+          loadItems();
+        }
+      });
+    });
+  }
+
   async function loadItems() {
     const search = document.getElementById('item-search')?.value.trim() || '';
     const itemType = document.getElementById('item-type-filter')?.value || '';
     const categoryId = document.getElementById('item-category-filter')?.value || '';
+    const unit = document.getElementById('item-unit-filter')?.value || '';
+    const brand = document.getElementById('item-brand-filter')?.value || '';
+    const minPrice = document.getElementById('item-min-price')?.value || '';
+    const maxPrice = document.getElementById('item-max-price')?.value || '';
+    const limit = parseInt(document.getElementById('item-page-size')?.value, 10) || 10;
+    const page = currentPage;
     const tbody = document.getElementById('items-table-body');
+    const resultsInfo = document.getElementById('items-results-info');
 
     try {
-      const res = await api.get('/items', { search, itemType, categoryId });
+      const res = await api.get('/items', {
+        search,
+        itemType,
+        categoryId,
+        unit,
+        brand,
+        minPrice,
+        maxPrice,
+        page,
+        limit,
+      });
+
       const items = res.data || [];
+      const pagination = res.pagination || { total: items.length, page: 1, limit: items.length, totalPages: 1 };
+
+      // Update Results Info
+      if (resultsInfo) {
+        if (pagination.total === 0) {
+          resultsInfo.textContent = 'لا توجد نتائج مطابقة للفلاتر الحالية.';
+        } else {
+          const start = (pagination.page - 1) * pagination.limit + 1;
+          const end = Math.min(pagination.total, pagination.page * pagination.limit);
+          resultsInfo.innerHTML = `عرض <strong>${start} - ${end}</strong> من إجمالي <strong style="color: var(--primary); font-weight: 700;">${pagination.total}</strong> مادة`;
+        }
+      }
+
+      // Populate Brand filter options dynamically
+      if (items.length > 0) {
+        const brandSelect = document.getElementById('item-brand-filter');
+        if (brandSelect) {
+          const currentBrandVal = brandSelect.value;
+          const existingBrands = new Set(Array.from(brandSelect.options).map(o => o.value));
+          items.forEach(it => {
+            const b = it.brand ? it.brand.trim() : '';
+            if (b && !existingBrands.has(b)) {
+              existingBrands.add(b);
+              const opt = document.createElement('option');
+              opt.value = b;
+              opt.textContent = b;
+              brandSelect.appendChild(opt);
+            }
+          });
+          brandSelect.value = currentBrandVal;
+        }
+      }
 
       if (items.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">No items found.</td></tr>`;
+        renderPagination(pagination);
         return;
       }
 
@@ -308,6 +481,9 @@ export async function renderItems(container) {
         });
       });
 
+      // Render pagination buttons
+      renderPagination(pagination);
+
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -328,10 +504,50 @@ export async function renderItems(container) {
     openReceiveStockModal({});
   });
 
-  // Bind Filters
-  document.getElementById('item-search').addEventListener('input', loadItems);
-  document.getElementById('item-type-filter').addEventListener('change', loadItems);
-  document.getElementById('item-category-filter').addEventListener('change', loadItems);
+  // Bind Filters with automatic page reset to 1
+  const onFilterChange = () => {
+    currentPage = 1;
+    loadItems();
+  };
+
+  const onDebouncedFilterChange = () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      currentPage = 1;
+      loadItems();
+    }, 250);
+  };
+
+  document.getElementById('item-search')?.addEventListener('input', onDebouncedFilterChange);
+  document.getElementById('item-type-filter')?.addEventListener('change', onFilterChange);
+  document.getElementById('item-category-filter')?.addEventListener('change', onFilterChange);
+  document.getElementById('item-unit-filter')?.addEventListener('change', onFilterChange);
+  document.getElementById('item-brand-filter')?.addEventListener('change', onFilterChange);
+  document.getElementById('item-min-price')?.addEventListener('input', onDebouncedFilterChange);
+  document.getElementById('item-max-price')?.addEventListener('input', onDebouncedFilterChange);
+  document.getElementById('item-page-size')?.addEventListener('change', onFilterChange);
+
+  // Clear filters button
+  document.getElementById('btn-clear-filters')?.addEventListener('click', () => {
+    const searchInput = document.getElementById('item-search');
+    const typeSelect = document.getElementById('item-type-filter');
+    const catSelect = document.getElementById('item-category-filter');
+    const unitSelect = document.getElementById('item-unit-filter');
+    const brandSelect = document.getElementById('item-brand-filter');
+    const minPriceInput = document.getElementById('item-min-price');
+    const maxPriceInput = document.getElementById('item-max-price');
+
+    if (searchInput) searchInput.value = '';
+    if (typeSelect) typeSelect.value = '';
+    if (catSelect) catSelect.value = '';
+    if (unitSelect) unitSelect.value = '';
+    if (brandSelect) brandSelect.value = '';
+    if (minPriceInput) minPriceInput.value = '';
+    if (maxPriceInput) maxPriceInput.value = '';
+
+    currentPage = 1;
+    loadItems();
+  });
 
   // New Item Modal (§13)
   document.getElementById('btn-create-item').addEventListener('click', async () => {

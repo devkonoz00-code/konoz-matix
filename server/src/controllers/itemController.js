@@ -61,8 +61,8 @@ function assertProductImageStorageConfigured() {
 const itemController = {
   async list(req, res, next) {
     try {
-      const items = await itemService.list(req.query);
-      res.json({ success: true, data: items });
+      const result = await itemService.list(req.query);
+      res.json({ success: true, data: result.items, pagination: { total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages } });
     } catch (error) {
       next(error);
     }

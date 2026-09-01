@@ -217,10 +217,72 @@ export function playErrorTone() {
 }
 
 /**
+ * 4. Messenger Notification Chime — Double Harmonic Bubble Pop (A5 -> D6)
+ * Instant acoustic recognition mimicking mobile chat / Messenger notifications.
+ */
+export function playMessengerChime() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const startTime = ctx.currentTime;
+    const pops = [
+      { freq: 880.00, time: 0.00, dur: 0.18 },  // A5
+      { freq: 1174.66, time: 0.10, dur: 0.28 }, // D6
+    ];
+
+    pops.forEach(pop => {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const osc3 = ctx.createOscillator();
+      const voiceGain = ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(pop.freq, startTime + pop.time);
+      osc1.frequency.exponentialRampToValueAtTime(pop.freq * 1.04, startTime + pop.time + 0.04);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(pop.freq * 2, startTime + pop.time);
+
+      osc3.type = 'sine';
+      osc3.frequency.setValueAtTime(pop.freq * 3, startTime + pop.time);
+      const osc3Gain = ctx.createGain();
+      osc3Gain.gain.setValueAtTime(0.15, startTime + pop.time);
+      osc3.connect(osc3Gain);
+      osc3Gain.connect(voiceGain);
+
+      osc1.connect(voiceGain);
+      osc2.connect(voiceGain);
+
+      voiceGain.gain.setValueAtTime(0.001, startTime + pop.time);
+      voiceGain.gain.exponentialRampToValueAtTime(1.0, startTime + pop.time + 0.012);
+      voiceGain.gain.exponentialRampToValueAtTime(0.0001, startTime + pop.time + pop.dur);
+
+      if (masterCompressor) {
+        voiceGain.connect(masterCompressor);
+      } else {
+        voiceGain.connect(ctx.destination);
+      }
+
+      osc1.start(startTime + pop.time);
+      osc2.start(startTime + pop.time);
+      osc3.start(startTime + pop.time);
+
+      osc1.stop(startTime + pop.time + pop.dur + 0.03);
+      osc2.stop(startTime + pop.time + pop.dur + 0.03);
+      osc3.stop(startTime + pop.time + pop.dur + 0.03);
+    });
+  } catch (err) {
+    console.debug('Audio playback error:', err);
+  }
+}
+
+/**
  * Master sound trigger based on action type:
  * - 'success' -> playSuccessChime()
  * - 'confirm' -> playConfirmBeep()
  * - 'error'   -> playErrorTone()
+ * - 'messenger' -> playMessengerChime()
  */
 export function playSound(type) {
   if (type === 'success') {
@@ -229,5 +291,8 @@ export function playSound(type) {
     playConfirmBeep();
   } else if (type === 'error' || type === 'warning') {
     playErrorTone();
+  } else if (type === 'messenger' || type === 'notification' || type === 'incoming') {
+    playMessengerChime();
   }
 }
+

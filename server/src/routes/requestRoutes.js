@@ -7,9 +7,13 @@ router.use(auth);
 router.get('/', requestController.list);
 router.get('/:id', requestController.getById);
 router.post('/', authorize('ADMIN', 'SUPERVISOR'), requestController.create);
-router.patch('/:id/submit', authorize('ADMIN', 'SUPERVISOR'), requestController.submit);
+router.post('/quick', authorize('WORKER', 'SUPERVISOR', 'ADMIN', 'WAREHOUSE_MANAGER'), requestController.createQuick);
+router.patch('/:id/seen', authorize('SUPERVISOR', 'ADMIN', 'WAREHOUSE_MANAGER', 'STOREKEEPER'), requestController.markSeen);
+router.patch('/:id/validate-quick', authorize('ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER'), requestController.validateQuick);
+router.patch('/:id/submit', authorize('ADMIN', 'SUPERVISOR', 'WORKER'), requestController.submit);
 router.patch('/:id/approve', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'SUPERVISOR'), requestController.approve);
 router.patch('/:id/reject', authorize('ADMIN', 'WAREHOUSE_MANAGER'), requestController.reject);
-router.patch('/:id/cancel', authorize('ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER'), requestController.cancel);
+router.patch('/:id/cancel', authorize('ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER', 'WORKER'), requestController.cancel);
 
 module.exports = router;
+

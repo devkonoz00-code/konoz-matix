@@ -67,10 +67,13 @@
   "item_type_tool": "Outillage",
   "item_type_other": "Autre",
 
+  "nav_worker_requests": "Commandes Atelier (Express)",
+  "btn_valide": "Valider & Traiter (VALIDÉ)",
   "role_admin": "Administrateur",
   "role_warehouse_manager": "Responsable Logistique & Dépôt",
   "role_storekeeper": "Magasinier",
   "role_supervisor": "Superviseur Chantier",
+  "role_worker": "Ouvrier / Technicien Atelier",
   "role_viewer": "Auditeur / Consultation",
 
   "lbl_item_code": "Code Article",

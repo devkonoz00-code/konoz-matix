@@ -67,10 +67,13 @@
   "item_type_tool": "Tool",
   "item_type_other": "Other",
 
+  "nav_worker_requests": "Workshop Orders (Express)",
+  "btn_valide": "Validate & Fulfill (VALIDÉ)",
   "role_admin": "Administrator",
   "role_warehouse_manager": "Warehouse Manager",
   "role_storekeeper": "Storekeeper",
   "role_supervisor": "Supervisor",
+  "role_worker": "Workshop Worker / Technician",
   "role_viewer": "Viewer (Read Only)",
 
   "lbl_item_code": "Item Code",

@@ -1,12 +1,11 @@
 const requestService = require('../services/requestService');
-const projectAssignmentService = require('../services/projectAssignmentService');
 const { validateRequired } = require('../validators/common');
 const { AppError } = require('../middleware/errorHandler');
 
 const requestController = {
   async list(req, res, next) {
     try {
-      const requests = await requestService.list(req.query);
+      const requests = await requestService.list(req.query, req.user);
       res.json({ success: true, data: requests });
     } catch (error) {
       next(error);
@@ -15,7 +14,7 @@ const requestController = {
 
   async getById(req, res, next) {
     try {
-      const result = await requestService.getById(req.params.id);
+      const result = await requestService.getById(req.params.id, req.user);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -28,6 +27,44 @@ const requestController = {
 
       const result = await requestService.create(req.body, req);
       res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Quick Messenger-Style Material Request (for WORKER / SUPERVISOR / ADMIN)
+   */
+  async createQuick(req, res, next) {
+    try {
+      validateRequired(req.body, ['projectId', 'textContent']);
+
+      const result = await requestService.createQuickRequest(req.body, req);
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Mark request as seen/read by supervisor or admin
+   */
+  async markSeen(req, res, next) {
+    try {
+      const result = await requestService.markAsSeen(req.params.id, req);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Fast Validate (VALIDE) & Fulfill Quick Material Request
+   */
+  async validateQuick(req, res, next) {
+    try {
+      const result = await requestService.validateQuickRequest(req.params.id, req.body, req);
+      res.json({ success: true, data: result, message: 'تمت معالجة واعتماد الطلب بنجاح (VALIDÉ)' });
     } catch (error) {
       next(error);
     }
@@ -71,3 +108,4 @@ const requestController = {
 };
 
 module.exports = requestController;
+

@@ -24,10 +24,11 @@ import { renderUsers } from '../pages/users.js';
 import { renderReports } from '../pages/reports.js';
 import { renderAuditLogs } from '../pages/audit-logs.js';
 import { renderSettings } from '../pages/settings.js';
-import { playSound, playSuccessChime, playConfirmBeep, playErrorTone } from './sound.js';
+import { renderWorkerRequests } from '../pages/worker-requests.js';
+import { playSound, playSuccessChime, playConfirmBeep, playErrorTone, playMessengerChime } from './sound.js';
 
 // Export sound functions for direct use across modules
-export { playSound, playSuccessChime, playConfirmBeep, playErrorTone };
+export { playSound, playSuccessChime, playConfirmBeep, playErrorTone, playMessengerChime };
 
 // Immediate global mobile menu handlers (works synchronously on touch/click)
 window.toggleMobileMenu = function(e) {
@@ -510,7 +511,7 @@ export function getMovementTypeBadge(type) {
   return `<span class="badge ${item.cls}">${item.label}</span>`;
 }
 
-// Update User UI Elements
+// Update User UI Elements & Role-based Navigation
 function updateUserInfoUI(user) {
   const nameEl = document.getElementById('sidebar-user-name');
   const roleEl = document.getElementById('sidebar-user-role');
@@ -520,22 +521,86 @@ function updateUserInfoUI(user) {
     if (nameEl) nameEl.textContent = user.fullName;
     if (roleEl) roleEl.textContent = user.role.replace('_', ' ');
     if (avatarEl) avatarEl.textContent = (user.fullName || 'U').charAt(0).toUpperCase();
+
+    const isWorker = user.role === 'WORKER';
+
+    // Adapt sidebar navigation for WORKER role
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    if (sidebarNav) {
+      // Toggle standard navigation elements
+      sidebarNav.querySelectorAll('.nav-section-title, a:not(#nav-worker-requests)').forEach((el) => {
+        el.style.display = isWorker ? 'none' : '';
+      });
+
+      // Ensure worker orders link exists
+      let workerLink = document.getElementById('nav-worker-requests');
+      if (isWorker) {
+        if (!workerLink) {
+          workerLink = document.createElement('a');
+          workerLink.href = '#/worker-requests';
+          workerLink.className = 'nav-link active';
+          workerLink.id = 'nav-worker-requests';
+          workerLink.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>طلبات الورشة (رسائل سريعة)</span>
+          `;
+          sidebarNav.prepend(workerLink);
+        } else {
+          workerLink.style.display = 'flex';
+        }
+      } else if (workerLink) {
+        workerLink.style.display = 'none';
+      }
+    }
+
+    // Adapt mobile bottom navigation bar
+    const mobileNav = document.querySelector('.mobile-nav');
+    if (mobileNav) {
+      if (isWorker) {
+        mobileNav.innerHTML = `
+          <a href="#/worker-requests" class="mobile-nav-item active" style="flex: 1; justify-content: center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>طلبات الورشة 💬</span>
+          </a>
+        `;
+      }
+    }
   }
 }
 
-// Check Notifications
+// Check Notifications with Messenger Audio Alert
+let prevUnreadCount = 0;
+let isFirstNotifCheck = true;
+
 async function checkNotifications() {
   if (!api.getToken()) return;
   try {
     const res = await api.get('/notifications?limit=5');
     const badge = document.getElementById('notif-badge');
+    const unreadCount = res.data?.unreadCount || 0;
+
     if (badge) {
-      if (res.data?.unreadCount > 0) {
+      if (unreadCount > 0) {
         badge.style.display = 'block';
       } else {
         badge.style.display = 'none';
       }
     }
+
+    // If new notifications arrived for supervisor/admin, play Messenger audio chime
+    if (!isFirstNotifCheck && unreadCount > prevUnreadCount) {
+      const user = api.getCurrentUser();
+      if (user && ['ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER', 'WORKER'].includes(user.role)) {
+        playMessengerChime();
+        const latest = res.data?.notifications?.[0];
+        if (latest && !latest.isRead) {
+          showToast(latest.message, 'info');
+        }
+      }
+    }
+
+    prevUnreadCount = unreadCount;
+    isFirstNotifCheck = false;
   } catch {}
 }
 
@@ -577,6 +642,7 @@ async function openNotificationsModal() {
       await api.patch('/notifications/read-all');
       showToast('All notifications marked as read', 'success');
       document.getElementById('notif-badge').style.display = 'none';
+      prevUnreadCount = 0;
       modal.remove();
     });
   } catch (err) {
@@ -590,16 +656,13 @@ async function openNotificationsModal() {
 async function initApp() {
   await i18n.init();
 
-  // Refresh the cached user profile on every app start. The API authorizes
-  // requests from the live database user, so the UI must not keep using a
-  // stale role from a previous login after an administrator changes it.
+  // Refresh the cached user profile on every app start.
   if (api.getToken()) {
     try {
       const profile = await api.get('/auth/me');
       if (profile?.data) api.setCurrentUser(profile.data);
     } catch {
-      // Keep the last cached profile for offline rendering. Authentication
-      // failures are already handled centrally by the API client.
+      // Offline fallback
     }
   }
 
@@ -614,6 +677,7 @@ async function initApp() {
   router.add('/scanner', renderScanner);
   router.add('/requests', renderRequests);
   router.add('/requests/:id', renderRequestDetail);
+  router.add('/worker-requests', renderWorkerRequests);
   router.add('/movements', renderMovements);
   router.add('/transfers', renderTransfers);
   router.add('/returns', renderReturns);
@@ -635,11 +699,19 @@ async function initApp() {
     }
 
     if (token && isLogin) {
-      if (user?.role === 'SUPERVISOR') {
+      if (user?.role === 'WORKER') {
+        router.navigate('/worker-requests');
+      } else if (user?.role === 'SUPERVISOR') {
         router.navigate('/scanner');
       } else {
         router.navigate('/dashboard');
       }
+      return false;
+    }
+
+    // Role-based route guard for WORKER
+    if (token && user?.role === 'WORKER' && path !== '/worker-requests') {
+      router.navigate('/worker-requests');
       return false;
     }
 

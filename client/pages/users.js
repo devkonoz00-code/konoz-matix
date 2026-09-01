@@ -60,6 +60,7 @@ export async function renderUsers(container) {
           WAREHOUSE_MANAGER: 'badge-info',
           STOREKEEPER: 'badge-purple',
           SUPERVISOR: 'badge-success',
+          WORKER: 'badge-purple',
           VIEWER: 'badge-secondary',
         }[u.role] || 'badge-secondary';
 
@@ -130,11 +131,12 @@ export async function renderUsers(container) {
           <div class="form-group">
             <label class="form-label">System Role</label>
             <select id="inp-u-role" class="form-select" required>
-              <option value="SUPERVISOR">SUPERVISOR (Site Operations & Logistics)</option>
-              <option value="WAREHOUSE_MANAGER">WAREHOUSE_MANAGER (Logistics & Approval)</option>
-              <option value="STOREKEEPER">STOREKEEPER (Warehouse Ops)</option>
-              <option value="ADMIN">ADMIN (Full Access)</option>
-              <option value="VIEWER">VIEWER (Read-Only)</option>
+              <option value="WORKER">WORKER (عامل ورشة / فني - شاشة طلبات ماسنجر سريعة)</option>
+              <option value="SUPERVISOR">SUPERVISOR (مسؤول موقع وعمليات لوجستية)</option>
+              <option value="WAREHOUSE_MANAGER">WAREHOUSE_MANAGER (مدير مستودع واعتمادات)</option>
+              <option value="STOREKEEPER">STOREKEEPER (أمين مستودع)</option>
+              <option value="ADMIN">ADMIN (مدير نظام - كامل الصلاحيات)</option>
+              <option value="VIEWER">VIEWER (مطلع فقط - للقراءة)</option>
             </select>
           </div>
           <div class="form-group">

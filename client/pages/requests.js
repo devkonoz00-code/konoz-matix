@@ -378,14 +378,18 @@ export async function renderRequests(container) {
     const textMessage = escapeHtml(r.textContent || r.note || 'طلب مواد');
     const photoUrls = r.photoUrls || (r.photoUrl ? [r.photoUrl] : []);
 
-    // WhatsApp and Direct Phone Contact
+    // WhatsApp and Direct Phone Contact (Algeria +213 support)
     const rawPhone = r.requestedBy?.phone || '';
     let waUrl = '';
     let telUrl = '';
     if (rawPhone && rawPhone !== '—') {
       let cleanDigits = rawPhone.replace(/[^0-9]/g, '');
-      if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
-        cleanDigits = '212' + cleanDigits.slice(1);
+      if (cleanDigits.startsWith('00213')) {
+        cleanDigits = cleanDigits.slice(2);
+      } else if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
+        cleanDigits = '213' + cleanDigits.slice(1);
+      } else if (!cleanDigits.startsWith('213') && cleanDigits.length === 9) {
+        cleanDigits = '213' + cleanDigits;
       }
       const waMsg = `السلام عليكم ${r.requestedBy?.fullName || ''}، بخصوص طلب المواد ${r.requestNumber} لمشروع "${r.projectId?.name || ''}".`;
       waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(waMsg)}`;
@@ -519,8 +523,12 @@ export async function renderRequests(container) {
     let telUrl = '';
     if (rawPhone && rawPhone !== '—') {
       let cleanDigits = rawPhone.replace(/[^0-9]/g, '');
-      if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
-        cleanDigits = '212' + cleanDigits.slice(1);
+      if (cleanDigits.startsWith('00213')) {
+        cleanDigits = cleanDigits.slice(2);
+      } else if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
+        cleanDigits = '213' + cleanDigits.slice(1);
+      } else if (!cleanDigits.startsWith('213') && cleanDigits.length === 9) {
+        cleanDigits = '213' + cleanDigits;
       }
       const waMsg = `السلام عليكم ${r.requestedBy?.fullName || ''}، بخصوص طلب المواد ${r.requestNumber} لمشروع "${r.projectId?.name || ''}".`;
       waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(waMsg)}`;

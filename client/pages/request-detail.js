@@ -85,9 +85,36 @@ export async function renderRequestDetail(container, params) {
         api.patch(`/requests/${requestId}/seen`).catch(() => {});
       }
 
+      const rawPhone = request.requestedBy?.phone || '';
+      let waUrl = '';
+      let telUrl = '';
+      if (rawPhone && rawPhone !== '—') {
+        let cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+        if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
+          cleanDigits = '212' + cleanDigits.slice(1);
+        }
+        const waMsg = `السلام عليكم ${request.requestedBy?.fullName || ''}، بخصوص طلب المواد ${request.requestNumber} لمشروع "${request.projectId?.name || ''}".`;
+        waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(waMsg)}`;
+        telUrl = `tel:${rawPhone}`;
+      }
+
       document.getElementById('req-num').textContent = request.requestNumber;
       document.getElementById('req-prj-name').textContent = `Project: ${request.projectId?.name || 'Site'}`;
-      document.getElementById('req-requester').textContent = `Requested by ${request.requestedBy?.fullName} (${request.requestedBy?.phone || request.requestedBy?.email || ''})`;
+      document.getElementById('req-requester').innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.25rem;">
+          <span>👷‍♂️ مقدم الطلب: <strong>${escapeHtml(request.requestedBy?.fullName || '—')}</strong></span>
+          ${telUrl ? `
+            <a href="${telUrl}" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; color: var(--accent-cyan); border-color: rgba(6, 182, 212, 0.4); text-decoration: none; display: flex; align-items: center; gap: 0.25rem;">
+              <span>📞 اتصال (${escapeHtml(rawPhone)})</span>
+            </a>
+          ` : ''}
+          ${waUrl ? `
+            <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success" style="padding: 0.2rem 0.65rem; font-size: 0.75rem; background: #25D366; border-color: #25D366; color: #fff; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 0.25rem; box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);">
+              <span>💬 واتساب</span>
+            </a>
+          ` : ''}
+        </div>
+      `;
       document.getElementById('stat-req-status').innerHTML = getStatusBadge(request.status);
       document.getElementById('stat-req-priority').textContent = `Priority: ${request.priority}`;
       document.getElementById('stat-req-date').textContent = formatDate(request.createdAt).split(',')[0];

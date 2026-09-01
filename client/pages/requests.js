@@ -378,6 +378,20 @@ export async function renderRequests(container) {
     const textMessage = escapeHtml(r.textContent || r.note || 'طلب مواد');
     const photoUrls = r.photoUrls || (r.photoUrl ? [r.photoUrl] : []);
 
+    // WhatsApp and Direct Phone Contact
+    const rawPhone = r.requestedBy?.phone || '';
+    let waUrl = '';
+    let telUrl = '';
+    if (rawPhone && rawPhone !== '—') {
+      let cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+      if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
+        cleanDigits = '212' + cleanDigits.slice(1);
+      }
+      const waMsg = `السلام عليكم ${r.requestedBy?.fullName || ''}، بخصوص طلب المواد ${r.requestNumber} لمشروع "${r.projectId?.name || ''}".`;
+      waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(waMsg)}`;
+      telUrl = `tel:${rawPhone}`;
+    }
+
     // Status & Seen Pill
     let seenBadge = '';
     if (isFulfilled) {
@@ -414,17 +428,24 @@ export async function renderRequests(container) {
             </div>
           </div>
 
-          <!-- Worker & Project Details Box -->
-          <div style="background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-md); padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; border: 1px solid var(--border-subtle);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <!-- Worker & Project Details Box with Direct Call & WhatsApp -->
+          <div style="background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-md); padding: 0.75rem 0.85rem; margin-bottom: 0.85rem; border: 1px solid var(--border-subtle);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; flex-wrap: wrap; gap: 0.4rem;">
               <div style="font-weight: 700; color: #fff; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
                 <span>👷‍♂️ ${workerName}</span>
               </div>
-              ${workerPhone ? `
-                <a href="tel:${workerPhone}" class="badge badge-outline" style="color: var(--accent-cyan); text-decoration: none; font-size: 0.72rem; padding: 0.2rem 0.5rem;">
-                  📞 ${workerPhone}
-                </a>
-              ` : ''}
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                ${telUrl ? `
+                  <a href="${telUrl}" class="badge badge-outline" style="color: var(--accent-cyan); text-decoration: none; font-size: 0.75rem; padding: 0.25rem 0.6rem; display: flex; align-items: center; gap: 0.2rem; border-color: rgba(6, 182, 212, 0.4);" title="اتصال هاتفي مباشر">
+                    <span>📞 اتصال</span>
+                  </a>
+                ` : ''}
+                ${waUrl ? `
+                  <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="badge" style="background: #25D366; color: #fff; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; display: flex; align-items: center; gap: 0.25rem; box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);" title="مراسلة العامل عبر واتساب مباشرة">
+                    <span>💬 واتساب</span>
+                  </a>
+                ` : ''}
+              </div>
             </div>
             <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
               <div>🏗️ <strong>${projectName}</strong> ${projectCode ? `(${projectCode})` : ''}</div>
@@ -493,6 +514,19 @@ export async function renderRequests(container) {
 
     const workerName = escapeHtml(r.requestedBy?.fullName || '—');
     const projectName = escapeHtml(r.projectId?.name || '—');
+    const rawPhone = r.requestedBy?.phone || '';
+    let waUrl = '';
+    let telUrl = '';
+    if (rawPhone && rawPhone !== '—') {
+      let cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+      if (cleanDigits.startsWith('0') && cleanDigits.length === 10) {
+        cleanDigits = '212' + cleanDigits.slice(1);
+      }
+      const waMsg = `السلام عليكم ${r.requestedBy?.fullName || ''}، بخصوص طلب المواد ${r.requestNumber} لمشروع "${r.projectId?.name || ''}".`;
+      waUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(waMsg)}`;
+      telUrl = `tel:${rawPhone}`;
+    }
+
     const contentSnippet = isQuick
       ? `<div style="font-size: 0.88rem; color: #fff; font-weight: 500; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(r.textContent || r.note || 'طلب مادة')}</div>
          ${r.photoUrls?.length > 0 ? `<span class="badge badge-info req-photo-thumb" data-src="${escapeHtml(r.photoUrls[0])}" style="cursor: pointer; font-size: 0.7rem; margin-top: 0.2rem;">📷 ${r.photoUrls.length} صور مرفقة</span>` : ''}`
@@ -520,7 +554,10 @@ export async function renderRequests(container) {
         <td style="font-weight: 600; color: var(--text-primary);">${projectName}</td>
         <td>
           <div style="font-weight: 600; color: #fff;">${workerName}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(r.requestedBy?.phone || r.requestedBy?.email || '')}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+            ${telUrl ? `<a href="${telUrl}" style="color: var(--accent-cyan); text-decoration: none;">📞 ${escapeHtml(rawPhone)}</a>` : '<span>—</span>'}
+            ${waUrl ? `<a href="${waUrl}" target="_blank" rel="noopener noreferrer" style="color: #25D366; text-decoration: none; font-weight: 700;">💬 واتساب</a>` : ''}
+          </div>
         </td>
         <td>${contentSnippet}</td>
         <td>

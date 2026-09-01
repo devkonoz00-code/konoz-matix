@@ -256,8 +256,10 @@ export async function renderWorkerRequests(container) {
       formData.append('entityType', 'MaterialRequest');
       formData.append('entityId', currentUser._id); // Temporary anchor ID
 
-      const uploadRes = await api.postFormData('/attachments', formData);
-      const url = uploadRes.data?.url || uploadRes.url;
+      const uploadRes = api.postFormData
+        ? await api.postFormData('/attachments', formData)
+        : await api.post('/attachments', formData);
+      const url = uploadRes.data?.url || uploadRes.url || uploadRes.data?.attachment?.url;
 
       if (!url) throw new Error('فشل الحصول على رابط الصورة');
 

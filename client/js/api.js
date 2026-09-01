@@ -129,6 +129,20 @@ class ApiClient {
     });
   }
 
+  postFormData(endpoint, formData) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  putFormData(endpoint, formData) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: formData,
+    });
+  }
+
   patch(endpoint, body = {}) {
     return this.request(endpoint, {
       method: 'PATCH',

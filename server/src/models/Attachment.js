@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const attachmentSchema = new mongoose.Schema({
   entityType: {
     type: String,
-    enum: ['REQUEST', 'MOVEMENT', 'ITEM', 'PROJECT'],
+    enum: ['REQUEST', 'MaterialRequest', 'MOVEMENT', 'Movement', 'ITEM', 'Item', 'PROJECT', 'Project'],
     required: true,
   },
   entityId: {

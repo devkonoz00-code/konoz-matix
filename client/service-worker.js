@@ -82,21 +82,25 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'close') return;
 
-  const targetPath = event.notification.data?.url || './index.html#/requests';
+  const rawUrl = event.notification.data?.url || '/#/requests';
+  const cleanPath = rawUrl.startsWith('./') ? rawUrl.replace('./', '/') : (rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl);
+  const targetUrl = new URL(cleanPath, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       // If a window is already open, focus it and navigate
       for (const client of windowClients) {
         if ('focus' in client) {
-          client.focus();
-          client.navigate(targetPath);
-          return;
+          return client.focus().then(() => {
+            if ('navigate' in client) {
+              return client.navigate(targetUrl);
+            }
+          });
         }
       }
       // If no window is open, open a new one
       if (clients.openWindow) {
-        return clients.openWindow(targetPath);
+        return clients.openWindow(targetUrl);
       }
     })
   );

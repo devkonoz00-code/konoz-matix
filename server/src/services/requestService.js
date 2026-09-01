@@ -26,7 +26,13 @@ const requestService = {
   async list(filters = {}, user = null) {
     const query = {};
     if (filters.projectId) query.projectId = filters.projectId;
-    if (filters.status) query.status = filters.status;
+    if (filters.status) {
+      if (filters.status.includes(',')) {
+        query.status = { $in: filters.status.split(',').map((s) => s.trim()) };
+      } else {
+        query.status = filters.status;
+      }
+    }
     if (filters.requestType) query.requestType = filters.requestType;
 
     // WORKER role can only see their own requests

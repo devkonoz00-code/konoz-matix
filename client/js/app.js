@@ -714,13 +714,46 @@ async function openNotificationsModal() {
     `;
 
     if (notifs.length === 0) {
-      html += `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No notifications</p>`;
+      html += `<p style="color: var(--text-muted); text-align: center; padding: 2rem;">لا توجد إشعارات جديدة</p>`;
     } else {
       notifs.forEach((n) => {
+        let targetUrl = '/requests';
+        let notifIcon = '🔔';
+
+        if (n.type === 'WORKER_QUICK_REQUEST') {
+          notifIcon = '📩';
+          targetUrl = n.relatedEntityId ? `/requests/${n.relatedEntityId}` : '/requests';
+        } else if (n.type === 'REQUEST_VALIDATED') {
+          notifIcon = '✅';
+          targetUrl = '/worker-requests';
+        } else if (n.relatedEntityType === 'MaterialRequest') {
+          notifIcon = '📦';
+          targetUrl = n.relatedEntityId ? `/requests/${n.relatedEntityId}` : '/requests';
+        } else if (n.relatedEntityType === 'Project') {
+          notifIcon = '🏗️';
+          targetUrl = n.relatedEntityId ? `/projects/${n.relatedEntityId}` : '/projects';
+        } else if (n.relatedEntityType === 'Item') {
+          notifIcon = '🏷️';
+          targetUrl = n.relatedEntityId ? `/items/${n.relatedEntityId}` : '/items';
+        }
+
         html += `
-          <div class="card" style="padding: 0.75rem 1rem; border-left: 3px solid ${n.isRead ? 'var(--border-subtle)' : 'var(--primary)'}; background: ${n.isRead ? 'transparent' : 'rgba(37,99,235,0.08)'}">
-            <div style="font-size: 0.85rem; font-weight: ${n.isRead ? '400' : '600'};">${n.message}</div>
-            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">${formatDate(n.createdAt)}</div>
+          <div class="card notif-item-card" data-id="${n._id}" data-url="${targetUrl}" data-read="${n.isRead}" style="cursor: pointer; padding: 0.85rem 1rem; border-left: 4px solid ${n.isRead ? 'var(--border-subtle)' : 'var(--primary)'}; background: ${n.isRead ? 'var(--bg-surface-elevated)' : 'rgba(37,99,235,0.12)'}; transition: all 0.2s ease; border-radius: var(--radius-md);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem;">
+              <div style="display: flex; gap: 0.6rem; align-items: flex-start; flex: 1;">
+                <span style="font-size: 1.25rem; line-height: 1;">${notifIcon}</span>
+                <div>
+                  <div style="font-size: 0.88rem; font-weight: ${n.isRead ? '500' : '700'}; color: ${n.isRead ? 'var(--text-primary)' : '#fff'}; line-height: 1.4;">${escapeHtml(n.message)}</div>
+                  <div style="font-size: 0.73rem; color: var(--text-muted); margin-top: 0.35rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🕒 ${formatDate(n.createdAt)}</span>
+                    ${!n.isRead ? '<span class="badge badge-primary" style="font-size: 0.65rem; padding: 0.15rem 0.4rem;">جديد</span>' : ''}
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-outline btn-open-notif" style="font-size: 0.75rem; padding: 0.25rem 0.55rem; white-space: nowrap;">
+                <span>عرض &rarr;</span>
+              </button>
+            </div>
           </div>
         `;
       });
@@ -728,9 +761,28 @@ async function openNotificationsModal() {
     html += `</div>`;
 
     const modal = showModal({
-      title: 'Notifications / الإشعارات',
+      title: 'Notifications / الإشعارات والتنبيهات',
       content: html,
-      cancelText: 'Close',
+      cancelText: 'Close / إغلاق',
+    });
+
+    // Click handler for each notification item
+    modal.querySelectorAll('.notif-item-card').forEach((card) => {
+      card.addEventListener('click', async (e) => {
+        const id = card.getAttribute('data-id');
+        const url = card.getAttribute('data-url');
+        const isRead = card.getAttribute('data-read') === 'true';
+
+        // Mark as read in background if not already read
+        if (!isRead && id) {
+          api.patch(`/notifications/${id}/read`).catch(() => {});
+        }
+
+        modal.remove();
+        if (url) {
+          router.navigate(url);
+        }
+      });
     });
 
     modal.querySelector('#btn-enable-push')?.addEventListener('click', async () => {

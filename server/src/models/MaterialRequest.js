@@ -39,6 +39,7 @@ const materialRequestSchema = new mongoose.Schema({
   note: String,
   textContent: String, // Worker freeform message (Messenger format)
   photoUrls: [{ type: String }], // Uploaded material photos
+  cloudinaryPublicIds: [{ type: String }], // Cloudinary public IDs for auto-deletion
   seenBy: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,

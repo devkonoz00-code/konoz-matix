@@ -7,6 +7,8 @@ const MaterialRequest = require('../models/MaterialRequest');
 const MaterialRequestLine = require('../models/MaterialRequestLine');
 const Item = require('../models/Item');
 const User = require('../models/User');
+const Attachment = require('../models/Attachment');
+const cloudinaryService = require('./cloudinaryService');
 const { AppError } = require('../middleware/errorHandler');
 const { getNextSequence } = require('../utils/sequence');
 const auditService = require('./auditService');
@@ -129,6 +131,14 @@ const requestService = {
 
     const requestNumber = await getNextSequence('request', 'REQ');
 
+    const rawPhotos = Array.isArray(data.photoUrls)
+      ? data.photoUrls.filter(Boolean)
+      : (data.photoUrl ? [data.photoUrl] : []);
+
+    const extractedPublicIds = rawPhotos
+      .map((url) => cloudinaryService.extractPublicIdFromUrl(url))
+      .filter(Boolean);
+
     const request = await MaterialRequest.create({
       requestNumber,
       requestType: 'WORKSHOP_QUICK',
@@ -137,7 +147,8 @@ const requestService = {
       priority: data.priority || 'NORMAL',
       status: 'SUBMITTED', // Immediate submission for instant supervisor review
       textContent: data.textContent.trim(),
-      photoUrls: Array.isArray(data.photoUrls) ? data.photoUrls.filter(Boolean) : (data.photoUrl ? [data.photoUrl] : []),
+      photoUrls: rawPhotos,
+      cloudinaryPublicIds: extractedPublicIds,
       note: data.note || '',
     });
 
@@ -176,7 +187,7 @@ const requestService = {
       action: 'CREATE_QUICK_REQUEST',
       entityType: 'MaterialRequest',
       entityId: request._id,
-      after: { requestNumber, status: 'SUBMITTED', requestType: 'WORKSHOP_QUICK' },
+      after: request.toJSON(),
       req,
     });
 
@@ -211,7 +222,7 @@ const requestService = {
 
   /**
    * Fast Validation (VALIDE) by supervisor or admin after purchasing/delivering materials.
-   * Transitions request directly to FULFILLED and archives it.
+   * Transitions request directly to FULFILLED and auto-cleans Cloudinary photos to free storage.
    */
   async validateQuickRequest(id, data = {}, req) {
     const request = await MaterialRequest.findById(id)
@@ -236,6 +247,22 @@ const requestService = {
     // Ensure validator is also added to seenBy if not already
     if (!request.seenBy.some((s) => String(s.user) === String(req.user._id))) {
       request.seenBy.push({ user: req.user._id, seenAt: new Date() });
+    }
+
+    // Auto-delete Cloudinary images for this fulfilled request to save cloud storage
+    const imagesToClean = [
+      ...(request.cloudinaryPublicIds || []),
+      ...(request.photoUrls || []),
+    ];
+    if (imagesToClean.length > 0) {
+      cloudinaryService.deleteWorkerRequestImages(imagesToClean).catch((err) => {
+        console.warn('Cloudinary cleanup warning on validateQuickRequest:', err.message);
+      });
+      // Clean associated Attachment records
+      Attachment.deleteMany({
+        entityType: 'MaterialRequest',
+        entityId: request._id,
+      }).catch(() => {});
     }
 
     await request.save();
@@ -282,6 +309,24 @@ const requestService = {
     const before = request.toJSON();
     request.status = newStatus;
     if (data && data.note) request.note = data.note;
+
+    // If fulfilled, rejected, or cancelled, auto-clean Cloudinary storage
+    if (['FULFILLED', 'REJECTED', 'CANCELLED'].includes(newStatus)) {
+      const imagesToClean = [
+        ...(request.cloudinaryPublicIds || []),
+        ...(request.photoUrls || []),
+      ];
+      if (imagesToClean.length > 0) {
+        cloudinaryService.deleteWorkerRequestImages(imagesToClean).catch((err) => {
+          console.warn('Cloudinary cleanup warning on updateStatus:', err.message);
+        });
+        Attachment.deleteMany({
+          entityType: 'MaterialRequest',
+          entityId: request._id,
+        }).catch(() => {});
+      }
+    }
+
     await request.save();
 
     // If approving, set approvedQuantity on lines

@@ -94,8 +94,12 @@ const attachmentController = {
       // 2. Upload to Cloudinary (Primary Architecture) or Local Storage (Fallback)
       if (cloudinaryService.isCloudinaryConfigured()) {
         try {
+          const targetFolder = req.body.entityType === 'MaterialRequest'
+            ? cloudinaryService.WORKER_REQUEST_IMAGE_FOLDER
+            : (req.body.folder || 'matix');
+
           const result = await cloudinaryService.uploadBuffer(req.file.buffer, {
-            folder: 'matix',
+            folder: targetFolder,
             resource_type: 'auto',
             allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
           });

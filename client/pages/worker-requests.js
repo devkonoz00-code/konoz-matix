@@ -183,25 +183,76 @@ export async function renderWorkerRequests(container) {
     }
   }
 
-  // Handle Image Upload Helper
-  async function handleImageFile(file) {
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      showToast('حجم الصورة كبير جداً (الحد الأقصى 8 ميغابايت)', 'error');
-      return;
-    }
+  // High-performance client-side image compression for mobile phones
+  async function compressImageFile(file, maxWidth = 1400, maxHeight = 1400, quality = 0.82) {
+    if (!file || !file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Handle Image Upload Helper with instant compression
+  async function handleImageFile(rawFile) {
+    if (!rawFile) return;
 
     const previewContainer = document.getElementById('worker-photos-preview');
     const loadingId = 'img-load-' + Date.now();
     const loadingEl = document.createElement('div');
     loadingEl.id = loadingId;
-    loadingEl.style.cssText = 'width: 65px; height: 65px; border-radius: var(--radius-sm); background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border: 1px dashed var(--primary); color: var(--primary);';
-    loadingEl.innerHTML = '<span>جاري الرفع...</span>';
+    loadingEl.style.cssText = 'width: 65px; height: 65px; border-radius: var(--radius-sm); background: var(--bg-surface-elevated); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.68rem; border: 1px dashed var(--primary); color: var(--primary); text-align: center;';
+    loadingEl.innerHTML = '<span style="animation: pulse 1s infinite;">⚡ ضغط ورفع...</span>';
     previewContainer.appendChild(loadingEl);
 
     try {
+      // 1. Compress image client-side to < 300KB
+      const fileToUpload = await compressImageFile(rawFile);
+
+      // 2. Upload to Cloudinary folder (matix/worker-requests)
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToUpload);
       formData.append('entityType', 'MaterialRequest');
       formData.append('entityId', currentUser._id); // Temporary anchor ID
 

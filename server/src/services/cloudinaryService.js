@@ -472,9 +472,70 @@ function deleteItemImage(publicId) {
   });
 }
 
+const WORKER_REQUEST_IMAGE_FOLDER = 'matix/worker-requests';
+
+/**
+ * Extract publicId from a Cloudinary URL
+ * Example: https://res.cloudinary.com/demo/image/upload/v12345/matix/worker-requests/xyz123.jpg -> matix/worker-requests/xyz123
+ */
+function extractPublicIdFromUrl(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return null;
+  try {
+    const parsed = new URL(imageUrl.replace(/^http:\/\//i, 'https://'));
+    if (!parsed.hostname.includes('cloudinary.com')) return null;
+    const parts = parsed.pathname.split('/');
+    const uploadIdx = parts.indexOf('upload');
+    if (uploadIdx === -1) return null;
+
+    // Everything after /upload/ (and optional version /v1234/)
+    let relevantParts = parts.slice(uploadIdx + 1);
+    if (relevantParts.length > 0 && /^v\d+$/.test(relevantParts[0])) {
+      relevantParts = relevantParts.slice(1);
+    }
+    const fullPathWithExt = relevantParts.join('/');
+    // Strip file extension
+    const lastDotIndex = fullPathWithExt.lastIndexOf('.');
+    return lastDotIndex !== -1 ? fullPathWithExt.slice(0, lastDotIndex) : fullPathWithExt;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Permanently delete worker request images from Cloudinary upon validation or rejection
+ */
+async function deleteWorkerRequestImages(publicIdsOrUrls = []) {
+  if (!publicIdsOrUrls || !Array.isArray(publicIdsOrUrls) || publicIdsOrUrls.length === 0) {
+    return { deleted: 0 };
+  }
+
+  const idsToDelete = publicIdsOrUrls
+    .map((item) => {
+      if (!item) return null;
+      if (item.includes('://')) {
+        return extractPublicIdFromUrl(item);
+      }
+      return item;
+    })
+    .filter(Boolean);
+
+  let deleted = 0;
+  for (const pubId of idsToDelete) {
+    try {
+      await deleteResource(pubId, { resource_type: 'image', invalidate: true });
+      deleted++;
+    } catch (err) {
+      console.warn(`Failed to delete Cloudinary image ${pubId}:`, err.message);
+    }
+  }
+
+  return { deleted };
+}
+
 module.exports = {
   cloudinary,
   ITEM_IMAGE_FOLDER,
+  WORKER_REQUEST_IMAGE_FOLDER,
   DEFAULT_UPLOAD_TIMEOUT_MS,
   isCloudinaryConfigured,
   getConfigurationStatus,
@@ -482,6 +543,8 @@ module.exports = {
   getSafeProviderDiagnostic,
   isManagedItemPublicId,
   parseItemImageReference,
+  extractPublicIdFromUrl,
+  deleteWorkerRequestImages,
   uploadBuffer,
   deleteResource,
   deleteItemImage,

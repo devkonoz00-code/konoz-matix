@@ -266,7 +266,13 @@ export function renderLogin(container) {
           'success'
         );
 
-        router.navigate(res.data.user.role === 'SUPERVISOR' ? '/scanner' : '/dashboard');
+        if (res.data.user.role === 'WORKER') {
+          router.navigate('/worker-requests');
+        } else if (res.data.user.role === 'SUPERVISOR') {
+          router.navigate('/scanner');
+        } else {
+          router.navigate('/dashboard');
+        }
       }
     } catch (error) {
       playErrorTone();

@@ -3,17 +3,57 @@
  * Creates in-app notifications for relevant events.
  */
 const Notification = require('../models/Notification');
+const pushService = require('./pushService');
 
 const notificationService = {
-  async create({ userId, type, message, relatedEntityType, relatedEntityId }) {
+  async create({ userId, type, message, relatedEntityType, relatedEntityId, title, url }) {
     try {
-      return await Notification.create({
+      const notif = await Notification.create({
         userId,
         type,
         message,
         relatedEntityType,
         relatedEntityId,
       });
+
+      // Automatically dispatch Web Push notification to user's phone / device
+      try {
+        let pushTitle = title || 'MATIX — إشعار لوجستي جديد';
+        let targetUrl = url;
+
+        if (!targetUrl) {
+          if (type === 'WORKER_QUICK_REQUEST') {
+            pushTitle = '🔔 طلب مواد فوري من الورشة';
+            targetUrl = relatedEntityId ? `/#/requests/${relatedEntityId}` : '/#/requests';
+          } else if (type === 'REQUEST_VALIDATED') {
+            pushTitle = '✅ تمت معالجة طلبك (VALIDÉ)';
+            targetUrl = '/#/worker-requests';
+          } else if (relatedEntityType === 'MaterialRequest') {
+            targetUrl = relatedEntityId ? `/#/requests/${relatedEntityId}` : '/#/requests';
+          } else if (relatedEntityType === 'Project') {
+            targetUrl = relatedEntityId ? `/#/projects/${relatedEntityId}` : '/#/projects';
+          } else {
+            targetUrl = '/#/dashboard';
+          }
+        }
+
+        // Fire and forget push dispatch (does not block DB response)
+        pushService.sendToUser(userId, {
+          title: pushTitle,
+          body: message,
+          type,
+          relatedEntityType,
+          relatedEntityId,
+          url: targetUrl,
+          vibrate: [200, 100, 200, 100, 300],
+        }).catch((pushErr) => {
+          console.warn('Web push background dispatch error:', pushErr.message);
+        });
+      } catch (err) {
+        console.warn('Failed to trigger web push for notification:', err.message);
+      }
+
+      return notif;
     } catch (error) {
       console.error('Failed to create notification:', error.message);
     }

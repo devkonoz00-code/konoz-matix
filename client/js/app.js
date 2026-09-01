@@ -604,18 +604,113 @@ async function checkNotifications() {
   } catch {}
 }
 
+// ----------------------------------------------------
+// Web Push Notifications Helpers (VAPID / Phone Push)
+// ----------------------------------------------------
+export function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+export async function setupWebPushNotifications(interactive = false) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    if (interactive) showToast('المتصفح أو الجهاز لا يدعم إشعارات الدفع (Web Push)', 'warning');
+    return false;
+  }
+
+  if (!api.getToken()) return false;
+
+  try {
+    let permission = Notification.permission;
+    if (permission === 'default' && interactive) {
+      permission = await Notification.requestPermission();
+    } else if (permission === 'default' && !interactive) {
+      return false;
+    }
+
+    if (permission !== 'granted') {
+      if (interactive) showToast('تم رفض إذن الإشعارات من إعدادات المتصفح', 'warning');
+      return false;
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+    let subscription = await reg.pushManager.getSubscription();
+
+    if (!subscription) {
+      const keyRes = await api.get('/push/vapid-key');
+      const publicKey = keyRes.data?.publicKey;
+      if (!publicKey) return false;
+
+      const convertedVapidKey = urlBase64ToUint8Array(publicKey);
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey,
+      });
+    }
+
+    // Register or update subscription on backend
+    await api.post('/push/subscribe', {
+      subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+    });
+
+    if (interactive) {
+      showToast('✅ تم تفعيل إشعارات الهاتف الفورية (Push) بنجاح!', 'success');
+      playSuccessChime();
+      try {
+        await api.post('/push/test');
+      } catch {}
+    }
+    return true;
+  } catch (err) {
+    console.warn('Web Push setup error:', err.message);
+    if (interactive) showToast('تعذر إعداد إشعارات الهاتف: ' + err.message, 'error');
+    return false;
+  }
+}
+
 // Notification Drawer Modal
 async function openNotificationsModal() {
   try {
     const res = await api.get('/notifications?limit=20');
     const notifs = res.data?.notifications || [];
+    const hasPushPermission = ('Notification' in window) && Notification.permission === 'granted';
 
     let html = `
+      <!-- Push Notifications Quick Banner -->
+      <div style="background: ${hasPushPermission ? 'rgba(16, 185, 129, 0.1)' : 'rgba(37, 99, 235, 0.12)'}; border: 1px solid ${hasPushPermission ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.3)'}; border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+          <div style="font-weight: 700; font-size: 0.9rem; color: #fff; display: flex; align-items: center; gap: 0.4rem;">
+            <span>${hasPushPermission ? '🔔 إشعارات الهاتف الفورية: مفعّلة' : '📲 إشعارات الهاتف الفورية (Push)'}</span>
+            <span class="badge ${hasPushPermission ? 'badge-success' : 'badge-info'}" style="font-size: 0.7rem;">${hasPushPermission ? 'نشطة' : 'تفعيل'}</span>
+          </div>
+          <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-secondary);">
+            ${hasPushPermission ? 'تصلك التنبيهات على شريط الهاتف حتى والتطبيق مغلق.' : 'اضغط لتفعيل استلام إشعارات الطلبات والعمليات مباشرة على هاتفك.'}
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          ${hasPushPermission ? `
+            <button class="btn btn-sm btn-outline" id="btn-test-push" style="font-size: 0.78rem;">
+              <span>📲 إرسال إشعار تجريبي</span>
+            </button>
+          ` : `
+            <button class="btn btn-sm btn-primary" id="btn-enable-push" style="font-size: 0.8rem; font-weight: 700;">
+              <span>⚡ تفعيل الإشعارات الآن</span>
+            </button>
+          `}
+        </div>
+      </div>
+
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <span style="font-size: 0.85rem; color: var(--text-secondary);">${res.data?.unreadCount || 0} unread</span>
         <button class="btn btn-sm btn-outline" id="btn-mark-all-read">Mark all as read</button>
       </div>
-      <div style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+      <div style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
     `;
 
     if (notifs.length === 0) {
@@ -633,9 +728,24 @@ async function openNotificationsModal() {
     html += `</div>`;
 
     const modal = showModal({
-      title: 'Notifications',
+      title: 'Notifications / الإشعارات',
       content: html,
       cancelText: 'Close',
+    });
+
+    modal.querySelector('#btn-enable-push')?.addEventListener('click', async () => {
+      await setupWebPushNotifications(true);
+      modal.remove();
+      openNotificationsModal();
+    });
+
+    modal.querySelector('#btn-test-push')?.addEventListener('click', async () => {
+      try {
+        await api.post('/push/test');
+        showToast('🚀 تم إرسال الإشعار التجريبي إلى هاتفك بنجاح!', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     });
 
     modal.querySelector('#btn-mark-all-read')?.addEventListener('click', async () => {
@@ -853,6 +963,10 @@ async function initApp() {
     navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
       .then((registration) => {
         registration.update();
+        // Auto sync push subscription if user already granted permission
+        if ('Notification' in window && Notification.permission === 'granted' && api.getToken()) {
+          setupWebPushNotifications(false).catch(() => {});
+        }
       })
       .catch((err) => {
         console.warn('SW registration failed:', err);

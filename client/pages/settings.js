@@ -2,16 +2,41 @@
  * Settings & System Config Page Module
  */
 import { api } from '../js/api.js';
-import { showToast, showModal } from '../js/app.js';
+import { showToast, showModal, setupWebPushNotifications, playSuccessChime } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderSettings(container) {
   document.getElementById('page-title').textContent = i18n.t('nav_settings');
 
+  const hasPush = ('Notification' in window) && Notification.permission === 'granted';
+
   container.innerHTML = `
     <div style="margin-bottom: 1.5rem;">
       <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);" data-i18n="nav_settings">System Settings</h2>
       <p style="color: var(--text-secondary); font-size: 0.85rem;">Manage logistics warehouses, product categories & system preferences</p>
+    </div>
+
+    <!-- Push Notifications Settings Card -->
+    <div class="card" style="margin-bottom: 1.5rem; border: 1px solid ${hasPush ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-subtle)'};">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0;">📱 إشعارات الهاتف وتطبيق الويب (Push Notifications)</h3>
+            <span class="badge ${hasPush ? 'badge-success' : 'badge-secondary'}">${hasPush ? 'مفعّلة ونشطة ✅' : 'غير مفعّلة ⚠️'}</span>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem; max-width: 600px;">
+            تصلك تنبيهات طلبات المواد والاعتمادات على شريط إشعارات الهاتف والكمبيوتر فور حدوثها مع الصوت حتى لو كان التطبيق مغلقاً.
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-sm ${hasPush ? 'btn-outline' : 'btn-primary'}" id="btn-toggle-push-settings">
+            <span>${hasPush ? '🔄 تحديث الاشتراك' : '⚡ تفعيل إشعارات الهاتف الآن'}</span>
+          </button>
+          <button class="btn btn-sm btn-outline" id="btn-test-push-settings" ${hasPush ? '' : 'style="display:none;"'}>
+            <span>📲 إرسال إشعار تجريبي</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="grid-cols-2">
@@ -156,6 +181,24 @@ export async function renderSettings(container) {
         }
       }
     });
+  });
+
+  // Push Notifications Controls
+  document.getElementById('btn-toggle-push-settings')?.addEventListener('click', async () => {
+    const success = await setupWebPushNotifications(true);
+    if (success) {
+      renderSettings(container);
+    }
+  });
+
+  document.getElementById('btn-test-push-settings')?.addEventListener('click', async () => {
+    try {
+      await api.post('/push/test');
+      showToast('🚀 تم إرسال الإشعار التجريبي إلى هاتفك بنجاح!', 'success');
+      playSuccessChime();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   });
 
   loadSettingsData();

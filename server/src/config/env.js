@@ -20,6 +20,9 @@ const env = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   CLOUDINARY_URL: process.env.CLOUDINARY_URL,
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || 'BLMJ4_c0ZGbYWPn302rYcNDcuNy9ILm2iwpFVnKotsGtzE1dRPhRGVG3j7OC06exWK-88RhP-huClBiIpodG0t0',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || '484uMIUC8ZsgGZYGYuramPGN0Gzc0UzY5oueTIvBxd0',
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT || 'mailto:admin@konoz-matix.onrender.com',
 };
 
 // Validate required env vars

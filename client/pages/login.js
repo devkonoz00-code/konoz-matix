@@ -4,7 +4,7 @@
  */
 import { api } from '../js/api.js';
 import { router } from '../js/router.js';
-import { showToast, playSuccessChime, playConfirmBeep, playErrorTone } from '../js/app.js';
+import { showToast, playSuccessChime, playConfirmBeep, playErrorTone, setupWebPushNotifications } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export function renderLogin(container) {
@@ -256,6 +256,11 @@ export function renderLogin(container) {
         playSuccessChime();
         api.setTokens(res.data.accessToken, res.data.refreshToken);
         api.setCurrentUser(res.data.user);
+
+        // Sync phone Web Push subscription in background
+        if ('Notification' in window && Notification.permission === 'granted') {
+          setupWebPushNotifications(false).catch(() => {});
+        }
 
         showToast(
           currentLang === 'ar'

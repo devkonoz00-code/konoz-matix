@@ -2,7 +2,7 @@
  * Material Requests Page Module
  */
 import { api } from '../js/api.js';
-import { formatDate, getStatusBadge, showToast, showModal } from '../js/app.js';
+import { formatDate, getStatusBadge, showToast, showModal, escapeHtml, playSuccessChime } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
 export async function renderRequests(container) {

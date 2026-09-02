@@ -163,32 +163,34 @@ export async function renderSuppliers(container) {
     }, 250);
   });
 
+  function selectCategoryChip(catKey) {
+    currentCategory = catKey || 'ALL';
+    filterChips.forEach((c) => {
+      const isMatch = c.getAttribute('data-cat') === currentCategory;
+      c.classList.toggle('active', isMatch);
+      c.style.background = isMatch ? 'var(--primary)' : 'var(--bg-surface-elevated)';
+      c.style.color = isMatch ? '#ffffff' : 'var(--text-secondary)';
+      c.style.borderColor = isMatch ? 'var(--primary)' : 'var(--border-subtle)';
+      c.style.fontWeight = isMatch ? '700' : '600';
+    });
+    loadSuppliers();
+  }
+
   // Bind Category Filter Chips
-  const filterChips = container.querySelectorAll('.supplier-chip');
   filterChips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      filterChips.forEach((c) => {
-        c.classList.remove('active');
-        c.style.background = 'var(--bg-surface-elevated)';
-        c.style.color = 'var(--text-secondary)';
-        c.style.borderColor = 'var(--border-subtle)';
-        c.style.fontWeight = '600';
-      });
-      chip.classList.add('active');
-      chip.style.background = 'var(--primary)';
-      chip.style.color = '#ffffff';
-      chip.style.borderColor = 'var(--primary)';
-      chip.style.fontWeight = '700';
-
-      currentCategory = chip.getAttribute('data-cat') || 'ALL';
-      loadSuppliers();
+      const cat = chip.getAttribute('data-cat') || 'ALL';
+      selectCategoryChip(cat);
     });
   });
 
   // Bind Add Supplier Button (Admin only)
   if (isAdmin) {
     container.querySelector('#btn-add-supplier')?.addEventListener('click', () => {
-      openSupplierModal(null, () => loadSuppliers());
+      openSupplierModal(null, (newCat) => {
+        if (newCat) selectCategoryChip(newCat);
+        else loadSuppliers();
+      });
     });
   }
 
@@ -201,11 +203,15 @@ export async function renderSuppliers(container) {
     if (!grid) return;
 
     try {
-      const res = await api.get('/suppliers', {
-        category: currentCategory !== 'ALL' ? currentCategory : undefined,
-        search: searchQuery || undefined,
-        limit: 200,
-      });
+      const queryParams = { limit: 200 };
+      if (currentCategory && currentCategory !== 'ALL') {
+        queryParams.category = currentCategory;
+      }
+      if (searchQuery) {
+        queryParams.search = searchQuery;
+      }
+
+      const res = await api.get('/suppliers', queryParams);
 
       const suppliers = res.data?.suppliers || [];
       const total = res.data?.total || 0;
@@ -236,7 +242,10 @@ export async function renderSuppliers(container) {
 
         if (isAdmin) {
           grid.querySelector('#btn-empty-add-supplier')?.addEventListener('click', () => {
-            openSupplierModal({ category: currentCategory !== 'ALL' ? currentCategory : 'BUILDING_MATERIALS' }, () => loadSuppliers());
+            openSupplierModal({ category: currentCategory !== 'ALL' ? currentCategory : 'BUILDING_MATERIALS' }, (newCat) => {
+              if (newCat) selectCategoryChip(newCat);
+              else loadSuppliers();
+            });
           });
         }
         return;
@@ -556,8 +565,8 @@ export async function renderSuppliers(container) {
       content: modalContent,
       confirmText: isEdit ? 'حفظ التعديلات 💾' : 'إضافة المورد ✅',
       cancelText: 'إلغاء',
-      onConfirm: async () => {
-        const modalContainer = document.querySelector('.modal-body') || document;
+      onConfirm: async (backdrop) => {
+        const modalContainer = backdrop?.querySelector('.modal-body') || document.querySelector('.modal-body') || document;
         const fullName = modalContainer.querySelector('#inp-sup-name')?.value.trim();
         const phone = modalContainer.querySelector('#inp-sup-phone')?.value.trim();
         const phone2 = modalContainer.querySelector('#inp-sup-phone2')?.value.trim();
@@ -594,7 +603,9 @@ export async function renderSuppliers(container) {
             showToast('تمت إضافة المورد إلى الدليل بنجاح', 'success');
           }
           playSuccessChime();
-          reloadFn();
+          if (typeof reloadFn === 'function') {
+            reloadFn(payload.category);
+          }
           return true;
         } catch (err) {
           showToast(err.message, 'error');

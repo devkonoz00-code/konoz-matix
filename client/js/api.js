@@ -121,7 +121,15 @@ class ApiClient {
 
   // HTTP Helper Methods
   get(endpoint, params = {}) {
-    const query = new URLSearchParams(params).toString();
+    const cleanParams = {};
+    if (params && typeof params === 'object') {
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') {
+          cleanParams[key] = value;
+        }
+      }
+    }
+    const query = new URLSearchParams(cleanParams).toString();
     const fullEndpoint = query ? `${endpoint}?${query}` : endpoint;
     return this.request(fullEndpoint, { method: 'GET' });
   }

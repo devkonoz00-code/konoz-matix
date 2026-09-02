@@ -9,24 +9,27 @@ const supplierService = {
   async list(filters = {}, page = 1, limit = 100) {
     const query = {};
 
-    if (filters.category && filters.category !== 'ALL') {
+    if (filters.category && filters.category !== 'ALL' && filters.category !== 'undefined' && filters.category !== 'null') {
       query.category = filters.category;
     }
 
-    if (filters.isActive !== undefined) {
+    if (filters.isActive !== undefined && filters.isActive !== 'undefined' && filters.isActive !== 'null') {
       query.isActive = filters.isActive === 'true' || filters.isActive === true;
     }
 
-    if (filters.search) {
-      const searchRegex = new RegExp(filters.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      query.$or = [
-        { fullName: searchRegex },
-        { company: searchRegex },
-        { location: searchRegex },
-        { phone: searchRegex },
-        { phone2: searchRegex },
-        { note: searchRegex },
-      ];
+    if (filters.search && filters.search !== 'undefined' && filters.search !== 'null') {
+      const trimmed = filters.search.trim();
+      if (trimmed) {
+        const searchRegex = new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        query.$or = [
+          { fullName: searchRegex },
+          { company: searchRegex },
+          { location: searchRegex },
+          { phone: searchRegex },
+          { phone2: searchRegex },
+          { note: searchRegex },
+        ];
+      }
     }
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);

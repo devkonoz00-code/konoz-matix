@@ -157,6 +157,7 @@ const reportRoutes = require('./routes/reportRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const pushRoutes = require('./routes/pushRoutes');
+const supplierRoutes = require('./routes/supplierRoutes');
 
 const idempotency = require('./middleware/idempotency');
 
@@ -178,6 +179,7 @@ app.use('/api/items', itemRoutes);
 app.use('/api/barcodes', barcodeRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/requests', requestRoutes);
+app.use('/api/suppliers', supplierRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/transfers', transferRoutes);
 app.use('/api/returns', returnRoutes);

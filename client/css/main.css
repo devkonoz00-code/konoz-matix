@@ -2771,4 +2771,53 @@ html[dir="rtl"] .req-msg-bubble, body.rtl .req-msg-bubble {
   transform: translateY(1px);
 }
 
+/* ==========================================================================
+   Suppliers & Contacts Directory — Modern UI & Cards
+   ========================================================================== */
+
+.supplier-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease;
+}
+
+.supplier-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.supplier-chips-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.supplier-chips-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: var(--radius-full);
+}
+
+.supplier-chip {
+  outline: none;
+  user-select: none;
+}
+
+.supplier-chip:hover:not(.active) {
+  background: var(--bg-surface-glass) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.supplier-chip:active {
+  transform: scale(0.97);
+}
+
+
 

@@ -25,6 +25,7 @@ import { renderReports } from '../pages/reports.js';
 import { renderAuditLogs } from '../pages/audit-logs.js';
 import { renderSettings } from '../pages/settings.js';
 import { renderWorkerRequests } from '../pages/worker-requests.js';
+import { renderSuppliers } from '../pages/suppliers.js';
 import { playSound, playSuccessChime, playConfirmBeep, playErrorTone, playMessengerChime } from './sound.js';
 
 // Export sound functions for direct use across modules
@@ -840,6 +841,7 @@ async function initApp() {
   router.add('/requests', renderRequests);
   router.add('/requests/:id', renderRequestDetail);
   router.add('/worker-requests', renderWorkerRequests);
+  router.add('/suppliers', renderSuppliers);
   router.add('/movements', renderMovements);
   router.add('/transfers', renderTransfers);
   router.add('/returns', renderReturns);

@@ -163,6 +163,8 @@ export async function renderSuppliers(container) {
     }, 250);
   });
 
+  const filterChips = container.querySelectorAll('.supplier-chip');
+
   function selectCategoryChip(catKey) {
     currentCategory = catKey || 'ALL';
     filterChips.forEach((c) => {

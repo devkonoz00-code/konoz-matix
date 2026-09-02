@@ -1,6 +1,6 @@
 const Supplier = require('../models/Supplier');
 const auditService = require('./auditService');
-const AppError = require('../utils/AppError');
+const { AppError } = require('../middleware/errorHandler');
 
 const supplierService = {
   /**

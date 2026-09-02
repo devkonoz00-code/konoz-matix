@@ -351,6 +351,46 @@ const requestService = {
 
     return this.getById(request._id);
   },
+
+  async delete(id, req) {
+    const request = await MaterialRequest.findById(id);
+    if (!request) throw new AppError('Request not found', 404, 'NOT_FOUND');
+
+    const before = request.toJSON();
+
+    // 1. Delete associated lines if catalog request
+    await MaterialRequestLine.deleteMany({ requestId: request._id }).catch(() => {});
+
+    // 2. Clean Cloudinary images & attachments if any
+    const imagesToClean = [
+      ...(request.cloudinaryPublicIds || []),
+      ...(request.photoUrls || []),
+    ];
+    if (imagesToClean.length > 0) {
+      cloudinaryService.deleteWorkerRequestImages(imagesToClean).catch((err) => {
+        console.warn('Cloudinary cleanup warning on delete:', err.message);
+      });
+      Attachment.deleteMany({
+        entityType: 'MaterialRequest',
+        entityId: request._id,
+      }).catch(() => {});
+    }
+
+    // 3. Delete the MaterialRequest record
+    await MaterialRequest.findByIdAndDelete(id);
+
+    // 4. Audit log
+    await auditService.log({
+      userId: req.user._id,
+      action: 'DELETE',
+      entityType: 'MaterialRequest',
+      entityId: id,
+      before,
+      req,
+    });
+
+    return { success: true, message: 'Request deleted successfully' };
+  },
 };
 
 module.exports = requestService;

@@ -220,6 +220,7 @@ export async function renderRequests(container) {
     const projectId = document.getElementById('req-project-filter')?.value || '';
     const currentUser = api.getCurrentUser();
     const canValidate = ['ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER'].includes(currentUser?.role);
+    const isAdmin = currentUser?.role === 'ADMIN';
 
     // 1. Partition by Tab (Active vs Archive)
     let filtered = cachedRequests.filter((r) => {
@@ -258,11 +259,11 @@ export async function renderRequests(container) {
             ${activeTab === 'active' ? 'لا توجد طلبات معلقة حالياً' : 'الأرشيف فارغ'}
           </h3>
           <p style="color: var(--text-secondary); font-size: 0.85rem; max-width: 420px; margin: 0 auto 1.25rem;">
-            ${activeTab === 'active' ? 'جميع الطلبات الواردة تمت معالجتها واعتمادها بنجاح.' : 'لم يتم العثور على أي طلبات مؤرشفة أو مكتملة تطابق البحث.'}
+            ${activeTab === 'active' ? 'كافة طلبات المواد والورشات تمت معالجتها وشراؤها بنجاح.' : 'لا توجد سجلات طلبات مؤرشفة حتى الآن.'}
           </p>
           ${activeTab === 'active' ? `
-            <button class="btn btn-sm btn-outline" id="btn-empty-archive-switch">
-              <span>عرض أرشيف الطلبات السابقة &rarr;</span>
+            <button class="btn btn-outline btn-sm" id="btn-empty-archive-switch">
+              <span>عرض سجل الأرشيف والطلبات السابقة &rarr;</span>
             </button>
           ` : ''}
         </div>
@@ -280,7 +281,7 @@ export async function renderRequests(container) {
     if (viewMode === 'cards') {
       area.innerHTML = `
         <div class="requests-card-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem;">
-          ${filtered.map((r) => renderRequestCard(r, canValidate)).join('')}
+          ${filtered.map((r) => renderRequestCard(r, canValidate, isAdmin)).join('')}
         </div>
       `;
     } else {
@@ -302,7 +303,7 @@ export async function renderRequests(container) {
                 </tr>
               </thead>
               <tbody>
-                ${filtered.map((r) => renderRequestTableRow(r, canValidate)).join('')}
+                ${filtered.map((r) => renderRequestTableRow(r, canValidate, isAdmin)).join('')}
               </tbody>
             </table>
           </div>
@@ -364,10 +365,47 @@ export async function renderRequests(container) {
         });
       });
     });
+
+    // Bind Admin Delete Buttons
+    area.querySelectorAll('.btn-delete-req').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const reqId = btn.getAttribute('data-id');
+        const reqNum = btn.getAttribute('data-num');
+
+        showModal({
+          title: `🗑️ حذف الطلب (${reqNum})`,
+          content: `
+            <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem;">
+              <p style="color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem;">
+                هل أنت متأكد من حذف الطلب (${escapeHtml(reqNum)}) نهائياً؟
+              </p>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; line-height: 1.5;">
+                سيتم حذف سجل الطلب وكافة صوره المرفقة من السحابة نهائياً ولا يمكن التراجع عن هذا الإجراء.
+              </p>
+            </div>
+          `,
+          confirmText: 'نعم، حذف نهائي 🗑️',
+          cancelText: 'إلغاء',
+          onConfirm: async () => {
+            try {
+              await api.delete(`/requests/${reqId}`);
+              playSuccessChime();
+              showToast(`تم حذف الطلب ${reqNum} بنجاح`, 'success');
+              loadRequests();
+              return true;
+            } catch (err) {
+              showToast(err.message, 'error');
+              return false;
+            }
+          },
+        });
+      });
+    });
   }
 
   // --- Helper: Render Mobile-First Request Card ---
-  function renderRequestCard(r, canValidate) {
+  function renderRequestCard(r, canValidate, isAdmin) {
     const isQuick = r.requestType === 'WORKSHOP_QUICK';
     const isFulfilled = r.status === 'FULFILLED';
     const isUrgent = r.priority === 'URGENT' || r.priority === 'HIGH';
@@ -498,15 +536,20 @@ export async function renderRequests(container) {
         </div>
 
         <!-- Action Buttons -->
-        <div style="display: grid; grid-template-columns: ${canValidate && !isFulfilled && !['REJECTED', 'CANCELLED'].includes(r.status) ? '1fr 1fr' : '1fr'}; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem; flex-wrap: wrap;">
           ${canValidate && !isFulfilled && !['REJECTED', 'CANCELLED'].includes(r.status) ? `
-            <button class="btn btn-sm btn-success btn-valide-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" data-worker="${workerName}" data-project="${projectName}" style="font-weight: 800; font-size: 0.85rem; padding: 0.55rem 0.5rem; border-radius: var(--radius-md); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+            <button class="btn btn-sm btn-success btn-valide-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" data-worker="${workerName}" data-project="${projectName}" style="flex: 1; min-width: 100px; font-weight: 800; font-size: 0.85rem; padding: 0.55rem 0.5rem; border-radius: var(--radius-md); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
               <span>✅ VALIDE مباشر</span>
             </button>
           ` : ''}
-          <a href="#/requests/${r._id}" class="btn btn-sm btn-outline" style="font-size: 0.85rem; font-weight: 600; padding: 0.55rem 0.5rem; text-align: center; border-radius: var(--radius-md);">
-            <span>🔍 عرض التفاصيل &rarr;</span>
+          <a href="#/requests/${r._id}" class="btn btn-sm btn-outline" style="flex: 1; min-width: 100px; font-size: 0.85rem; font-weight: 600; padding: 0.55rem 0.5rem; text-align: center; border-radius: var(--radius-md);">
+            <span>🔍 التفاصيل &rarr;</span>
           </a>
+          ${isAdmin ? `
+            <button class="btn btn-sm btn-danger btn-delete-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" title="حذف الطلب نهائياً" style="font-weight: 700; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--danger); display: flex; align-items: center; justify-content: center;">
+              <span>🗑️</span>
+            </button>
+          ` : ''}
         </div>
 
       </div>
@@ -514,7 +557,7 @@ export async function renderRequests(container) {
   }
 
   // --- Helper: Render Desktop Table Row ---
-  function renderRequestTableRow(r, canValidate) {
+  function renderRequestTableRow(r, canValidate, isAdmin) {
     const isQuick = r.requestType === 'WORKSHOP_QUICK';
     const isFulfilled = r.status === 'FULFILLED';
     const seenList = r.seenBy || [];
@@ -590,6 +633,11 @@ export async function renderRequests(container) {
             <a href="#/requests/${r._id}" class="btn btn-sm btn-outline" title="عرض التفاصيل الكاملة">
               <span>التفاصيل &rarr;</span>
             </a>
+            ${isAdmin ? `
+              <button class="btn btn-sm btn-danger btn-delete-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" title="حذف الطلب نهائياً" style="padding: 0.3rem 0.55rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--danger);">
+                <span>🗑️</span>
+              </button>
+            ` : ''}
           </div>
         </td>
       </tr>

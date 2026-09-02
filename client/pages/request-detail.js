@@ -348,6 +348,44 @@ export async function renderRequestDetail(container, params) {
         }
       }
 
+      // Admin Delete Request Button
+      if (currentUser?.role === 'ADMIN') {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.innerHTML = '<span>🗑️ حذف الطلب</span>';
+        deleteBtn.style.cssText = 'background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--danger); font-weight: 700;';
+        deleteBtn.addEventListener('click', () => {
+          showModal({
+            title: `🗑️ حذف الطلب (${request.requestNumber})`,
+            content: `
+              <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem;">
+                <p style="color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem;">
+                  هل أنت متأكد من حذف هذا الطلب (${escapeHtml(request.requestNumber)}) نهائياً؟
+                </p>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; line-height: 1.5;">
+                  سيتم حذف بيانات الطلب وكافة صوره من السحابة نهائياً والعودة إلى قائمة الطلبات.
+                </p>
+              </div>
+            `,
+            confirmText: 'نعم، حذف نهائي 🗑️',
+            cancelText: 'إلغاء',
+            onConfirm: async () => {
+              try {
+                await api.delete(`/requests/${requestId}`);
+                playSuccessChime();
+                showToast(`تم حذف الطلب ${request.requestNumber} بنجاح`, 'success');
+                window.location.hash = '#/requests';
+                return true;
+              } catch (err) {
+                showToast(err.message, 'error');
+                return false;
+              }
+            },
+          });
+        });
+        actionsBar.appendChild(deleteBtn);
+      }
+
     } catch (err) {
       showToast(err.message, 'error');
     }

@@ -105,6 +105,15 @@ const requestController = {
       next(error);
     }
   },
+
+  async delete(req, res, next) {
+    try {
+      const result = await requestService.delete(req.params.id, req);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = requestController;

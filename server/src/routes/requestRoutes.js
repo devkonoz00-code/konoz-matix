@@ -14,6 +14,7 @@ router.patch('/:id/submit', authorize('ADMIN', 'SUPERVISOR', 'WORKER'), requestC
 router.patch('/:id/approve', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'SUPERVISOR'), requestController.approve);
 router.patch('/:id/reject', authorize('ADMIN', 'WAREHOUSE_MANAGER'), requestController.reject);
 router.patch('/:id/cancel', authorize('ADMIN', 'SUPERVISOR', 'WAREHOUSE_MANAGER', 'WORKER'), requestController.cancel);
+router.delete('/:id', authorize('ADMIN'), requestController.delete);
 
 module.exports = router;
 

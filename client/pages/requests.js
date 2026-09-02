@@ -413,13 +413,21 @@ export async function renderRequests(container) {
     const isSeen = seenList.length > 0;
     const lastSeen = isSeen ? seenList[seenList.length - 1] : null;
 
-    const workerName = escapeHtml(r.requestedBy?.fullName || 'عامل الورشة');
+    const rawWorker = r.requestedBy?.fullName || 'عامل الورشة';
+    const workerName = escapeHtml(rawWorker);
     const workerPhone = escapeHtml(r.requestedBy?.phone || '');
     const projectName = escapeHtml(r.projectId?.name || 'الورشة');
     const projectCode = escapeHtml(r.projectId?.projectCode || '');
-    const projectLoc = escapeHtml(r.projectId?.location || '');
     const textMessage = escapeHtml(r.textContent || r.note || 'طلب مواد');
     const photoUrls = r.photoUrls || (r.photoUrl ? [r.photoUrl] : []);
+
+    // Initials for avatar circle
+    const initials = rawWorker
+      .split(' ')
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '👷';
 
     // WhatsApp and Direct Phone Contact (Algeria +213 support)
     const rawPhone = r.requestedBy?.phone || '';
@@ -442,80 +450,107 @@ export async function renderRequests(container) {
     // Status & Seen Pill
     let seenBadge = '';
     if (isFulfilled) {
-      seenBadge = '<span class="badge badge-success" style="font-size: 0.72rem; font-weight: 700;">✅ معالج (VALIDÉ)</span>';
+      seenBadge = '<span class="badge badge-success" style="font-size: 0.73rem; font-weight: 700; padding: 0.25rem 0.6rem;">✅ معالج (VALIDÉ)</span>';
     } else if (isSeen) {
-      seenBadge = `<span class="badge badge-info" style="font-size: 0.72rem;" title="تم الاطلاع بواسطة ${escapeHtml(lastSeen?.user?.fullName || 'المشرف')}">👁️ تمت القراءة من طرف ${escapeHtml(lastSeen?.user?.fullName || 'المشرف')}</span>`;
+      seenBadge = `<span class="badge badge-info" style="font-size: 0.73rem; padding: 0.25rem 0.6rem;" title="تم الاطلاع بواسطة ${escapeHtml(lastSeen?.user?.fullName || 'المشرف')}">👁️ تمت القراءة (${escapeHtml(lastSeen?.user?.fullName || 'المشرف')})</span>`;
     } else if (isQuick) {
-      seenBadge = '<span class="badge badge-warning" style="font-size: 0.72rem; animation: pulse 2s infinite;">🟡 طلب جديد (غير مقروء)</span>';
+      seenBadge = '<span class="badge badge-warning" style="font-size: 0.73rem; font-weight: 700; padding: 0.25rem 0.6rem; animation: pulse 2s infinite;">🟡 طلب جديد (غير مقروء)</span>';
     }
 
-    const cardBorderColor = isFulfilled
-      ? 'var(--success)'
-      : isQuick && !isSeen
-        ? 'var(--warning)'
-        : 'var(--primary)';
+    let cardAccentClass = 'req-card-accent-catalog';
+    if (isFulfilled) {
+      cardAccentClass = 'req-card-accent-fulfilled';
+    } else if (isUrgent) {
+      cardAccentClass = 'req-card-accent-urgent';
+    } else if (isQuick && !isSeen) {
+      cardAccentClass = 'req-card-accent-unread';
+    } else if (isQuick) {
+      cardAccentClass = 'req-card-accent-workshop';
+    }
 
     return `
-      <div class="card req-mobile-card" style="padding: 1.1rem; border-radius: var(--radius-lg); border-top: 4px solid ${cardBorderColor}; background: var(--bg-surface-elevated); display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s;">
+      <div class="card req-card-elevated ${cardAccentClass}">
         
         <div>
           <!-- Header Bar: ID & Badges -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem; flex-wrap: wrap;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; gap: 0.5rem; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 0.4rem;">
-              <a href="#/requests/${r._id}" style="font-family: var(--font-mono); font-weight: 800; font-size: 0.95rem; color: var(--primary); letter-spacing: 0.5px;">
-                ${escapeHtml(r.requestNumber)}
+              <a href="#/requests/${r._id}" style="font-family: var(--font-mono); font-weight: 800; font-size: 0.98rem; color: var(--primary); text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;">
+                <span>#${escapeHtml(r.requestNumber)}</span>
               </a>
-              ${isUrgent ? '<span class="badge badge-danger" style="font-size: 0.68rem; font-weight: 800; animation: pulse 1.5s infinite;">⚡ عاجل جداً</span>' : ''}
+              ${isUrgent ? '<span class="badge badge-danger" style="font-size: 0.68rem; font-weight: 800; animation: pulse 1.5s infinite; padding: 0.2rem 0.5rem;">⚡ عاجل جداً</span>' : ''}
             </div>
             <div style="display: flex; gap: 0.35rem; align-items: center;">
               ${isQuick
-                ? '<span class="badge badge-purple" style="font-size: 0.72rem; font-weight: 700;">💬 ورشة (عامل)</span>'
-                : '<span class="badge badge-secondary" style="font-size: 0.72rem;">📦 كتالوج</span>'}
+                ? '<span class="badge badge-purple" style="font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem;">💬 ورشة (عامل)</span>'
+                : '<span class="badge badge-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">📦 كتالوج</span>'}
               ${getStatusBadge(r.status)}
             </div>
           </div>
 
-          <!-- Worker & Project Details Box with Direct Call & WhatsApp -->
-          <div style="background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-md); padding: 0.75rem 0.85rem; margin-bottom: 0.85rem; border: 1px solid var(--border-subtle);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; flex-wrap: wrap; gap: 0.4rem;">
-              <div style="font-weight: 700; color: #fff; font-size: 0.92rem; display: flex; align-items: center; gap: 0.35rem;">
-                <span>👷‍♂️ ${workerName}</span>
+          <!-- Worker & Project Identity Box with Direct Call & WhatsApp -->
+          <div class="req-worker-widget">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              
+              <!-- Worker Profile Info -->
+              <div style="display: flex; align-items: center; gap: 0.55rem;">
+                <div class="req-worker-avatar" style="${isQuick ? 'background: linear-gradient(135deg, #8b5cf6, #ec4899);' : ''}">
+                  <span>${initials}</span>
+                </div>
+                <div>
+                  <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; line-height: 1.2;">
+                    ${workerName}
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">
+                    ${isQuick ? '👷‍♂️ عامل بالموقع' : '📋 طلب مواد كتالوج'}
+                  </div>
+                </div>
               </div>
-              <div style="display: flex; gap: 0.4rem; align-items: center;">
+
+              <!-- Quick Contact Actions -->
+              <div style="display: flex; gap: 0.35rem; align-items: center;">
                 ${telUrl ? `
-                  <a href="${telUrl}" class="badge badge-outline" style="color: var(--accent-cyan); text-decoration: none; font-size: 0.75rem; padding: 0.25rem 0.6rem; display: flex; align-items: center; gap: 0.2rem; border-color: rgba(6, 182, 212, 0.4);" title="اتصال هاتفي مباشر">
+                  <a href="${telUrl}" class="badge badge-outline" style="color: var(--accent-cyan); text-decoration: none; font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.65rem; display: flex; align-items: center; gap: 0.25rem; border-color: rgba(6, 182, 212, 0.4); border-radius: var(--radius-full); transition: all 0.2s;" title="اتصال هاتفي مباشر">
                     <span>📞 اتصال</span>
                   </a>
                 ` : ''}
                 ${waUrl ? `
-                  <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="badge" style="background: #25D366; color: #fff; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.65rem; display: flex; align-items: center; gap: 0.25rem; box-shadow: 0 2px 6px rgba(37, 211, 102, 0.3);" title="مراسلة العامل عبر واتساب مباشرة">
+                  <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="badge" style="background: #25D366; color: #ffffff; text-decoration: none; font-size: 0.75rem; font-weight: 700; padding: 0.3rem 0.7rem; display: flex; align-items: center; gap: 0.3rem; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.35); border-radius: var(--radius-full); transition: transform 0.15s;" title="مراسلة العامل عبر واتساب مباشرة">
                     <span>💬 واتساب</span>
                   </a>
                 ` : ''}
               </div>
             </div>
-            <div style="font-size: 0.8rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem;">
-              <div>🏗️ <strong>${projectName}</strong> ${projectCode ? `(${projectCode})` : ''}</div>
-              <div style="font-size: 0.72rem; color: var(--text-muted);">🕒 ${formatDate(r.createdAt)}</div>
+
+            <!-- Project / Workshop Row -->
+            <div style="font-size: 0.82rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--border-subtle);">
+              <div style="display: flex; align-items: center; gap: 0.3rem;">
+                <span>🏗️</span>
+                <strong style="color: var(--text-primary);">${projectName}</strong>
+                ${projectCode ? `<span style="font-size: 0.73rem; color: var(--text-muted); font-family: var(--font-mono);">(${projectCode})</span>` : ''}
+              </div>
+              <div style="font-size: 0.73rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.25rem;">
+                <span>🕒 ${formatDate(r.createdAt)}</span>
+              </div>
             </div>
           </div>
 
           <!-- Message Content Box -->
-          <div style="background: ${isQuick ? 'rgba(124, 58, 237, 0.07)' : 'rgba(255, 255, 255, 0.03)'}; border-left: 3px solid ${isQuick ? 'var(--accent-purple)' : 'var(--border-subtle)'}; border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 0.75rem 0.9rem; margin-bottom: 0.85rem;">
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; font-weight: 600;">
-              ${isQuick ? '📝 نص طلب المواد المطلوب:' : '📋 ملاحظة الطلب:'}
+          <div class="req-msg-bubble">
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 700; display: flex; align-items: center; gap: 0.3rem;">
+              <span>${isQuick ? '💬 بيان المواد والأدوات المطلوبة:' : '📋 ملاحظة الطلب:'}</span>
             </div>
-            <div style="font-size: 0.92rem; color: #fff; line-height: 1.5; white-space: pre-wrap; font-weight: 500;">${textMessage}</div>
+            <div style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.55; white-space: pre-wrap; font-weight: 500;">${textMessage}</div>
 
             <!-- Photos Gallery (if any) -->
             ${photoUrls.length > 0 ? `
-              <div style="margin-top: 0.75rem;">
-                <div style="font-size: 0.73rem; color: var(--accent-cyan); font-weight: 600; margin-bottom: 0.4rem;">
-                  📸 صور المواد المرفقة (${photoUrls.length}):
+              <div style="margin-top: 0.85rem; padding-top: 0.65rem; border-top: 1px dashed var(--border-subtle);">
+                <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.3rem;">
+                  <span>📸 صور المواد المرفقة (${photoUrls.length}):</span>
                 </div>
-                <div style="display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.35rem;">
+                <div style="display: flex; gap: 0.55rem; overflow-x: auto; padding-bottom: 0.35rem;">
                   ${photoUrls.map((pUrl) => `
-                    <div class="req-photo-thumb" data-src="${escapeHtml(pUrl)}" style="cursor: pointer; width: 64px; height: 64px; min-width: 64px; border-radius: var(--radius-sm); overflow: hidden; border: 1.5px solid var(--border-subtle); background: #000; box-shadow: 0 2px 6px rgba(0,0,0,0.3); transition: transform 0.2s;">
+                    <div class="req-photo-thumb req-photo-thumb-card" data-src="${escapeHtml(pUrl)}" title="انقر لتكبير الصورة">
                       <img src="${escapeHtml(pUrl)}" alt="صورة المادة" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
                     </div>
                   `).join('')}
@@ -524,29 +559,30 @@ export async function renderRequests(container) {
             ` : ''}
           </div>
 
-          <!-- Seen / Processed Status Pill -->
+          <!-- Seen / Processed Status Bar -->
           <div style="margin-bottom: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
             <div>${seenBadge}</div>
             ${isFulfilled && r.processedBy ? `
-              <div style="font-size: 0.72rem; color: var(--success);">
-                اعتماد: ${escapeHtml(r.processedBy.fullName || 'المشرف')}
+              <div style="font-size: 0.74rem; color: var(--success); font-weight: 600; display: flex; align-items: center; gap: 0.25rem;">
+                <span>اعتماد:</span>
+                <strong>${escapeHtml(r.processedBy.fullName || 'المشرف')}</strong>
               </div>
             ` : ''}
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem; flex-wrap: wrap;">
+        <!-- Action Buttons Footer -->
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border-subtle); padding-top: 0.85rem; flex-wrap: wrap; align-items: center;">
           ${canValidate && !isFulfilled && !['REJECTED', 'CANCELLED'].includes(r.status) ? `
-            <button class="btn btn-sm btn-success btn-valide-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" data-worker="${workerName}" data-project="${projectName}" style="flex: 1; min-width: 100px; font-weight: 800; font-size: 0.85rem; padding: 0.55rem 0.5rem; border-radius: var(--radius-md); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);">
+            <button class="btn btn-sm btn-valide-req btn-valide-req-glow" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" data-worker="${workerName}" data-project="${projectName}" style="flex: 1; min-width: 120px; font-size: 0.88rem; padding: 0.6rem 0.65rem; border-radius: var(--radius-md);">
               <span>✅ VALIDE مباشر</span>
             </button>
           ` : ''}
-          <a href="#/requests/${r._id}" class="btn btn-sm btn-outline" style="flex: 1; min-width: 100px; font-size: 0.85rem; font-weight: 600; padding: 0.55rem 0.5rem; text-align: center; border-radius: var(--radius-md);">
+          <a href="#/requests/${r._id}" class="btn btn-sm btn-outline" style="flex: 1; min-width: 100px; font-size: 0.86rem; font-weight: 600; padding: 0.6rem 0.5rem; text-align: center; border-radius: var(--radius-md); text-decoration: none;">
             <span>🔍 التفاصيل &rarr;</span>
           </a>
           ${isAdmin ? `
-            <button class="btn btn-sm btn-danger btn-delete-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" title="حذف الطلب نهائياً" style="font-weight: 700; padding: 0.55rem 0.75rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--danger); display: flex; align-items: center; justify-content: center;">
+            <button class="btn btn-sm btn-danger btn-delete-req" data-id="${r._id}" data-num="${escapeHtml(r.requestNumber)}" title="حذف الطلب نهائياً" style="font-weight: 700; padding: 0.6rem 0.85rem; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: var(--danger); display: flex; align-items: center; justify-content: center;">
               <span>🗑️</span>
             </button>
           ` : ''}

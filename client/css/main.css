@@ -2647,3 +2647,128 @@ html[dir="rtl"] #btn-login-arrow {
   }
 }
 
+/* ==========================================================================
+   Material Request Cards — Modern Mobile-First Polish & Aesthetics
+   ========================================================================== */
+
+.req-card-elevated {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.22s ease;
+}
+
+.req-card-elevated:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.req-card-accent-urgent {
+  border-top: 4px solid #ef4444 !important;
+}
+
+.req-card-accent-fulfilled {
+  border-top: 4px solid #10b981 !important;
+}
+
+.req-card-accent-workshop {
+  border-top: 4px solid #8b5cf6 !important;
+}
+
+.req-card-accent-catalog {
+  border-top: 4px solid #3b82f6 !important;
+}
+
+.req-card-accent-unread {
+  border-top: 4px solid #f59e0b !important;
+}
+
+/* Worker Identity Widget */
+.req-worker-widget {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 0.95rem;
+  margin-bottom: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.req-worker-avatar {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+}
+
+/* Message Bubble */
+.req-msg-bubble {
+  background: rgba(139, 92, 246, 0.04);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-right: 3.5px solid #8b5cf6;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.9rem;
+}
+
+html[dir="rtl"] .req-msg-bubble, body.rtl .req-msg-bubble {
+  border-right: 3.5px solid #8b5cf6;
+  border-left: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+/* Photo Thumbnail Hover Effect */
+.req-photo-thumb-card {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  min-width: 68px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1.5px solid var(--border-subtle);
+  background: #0f172a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.req-photo-thumb-card:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+}
+
+/* Fast Valide Button */
+.btn-valide-req-glow {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  border: none !important;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.btn-valide-req-glow:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4) !important;
+}
+
+.btn-valide-req-glow:active {
+  transform: translateY(1px);
+}
+
+

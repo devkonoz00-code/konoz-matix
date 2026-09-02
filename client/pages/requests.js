@@ -654,10 +654,25 @@ export async function renderRequests(container) {
 
   // Messenger-Style Quick Request Modal (Admin / Supervisor / All Roles)
   document.getElementById('btn-create-quick-request')?.addEventListener('click', async () => {
-    const prjRes = await api.get('/projects?status=ACTIVE');
-    const projects = prjRes.data || [];
+    let projects = [];
+    try {
+      const prjRes = await api.get('/projects');
+      const allProjects = prjRes.data || [];
+      projects = allProjects.filter((p) => p.status !== 'ARCHIVED');
+      if (projects.length === 0 && allProjects.length > 0) {
+        projects = allProjects;
+      }
+    } catch (err) {
+      showToast('تعذر تحميل قائمة المشاريع: ' + err.message, 'error');
+    }
+
     const currentUser = api.getCurrentUser();
     let uploadedPhotoUrls = [];
+
+    const optionsHtml = projects.length === 0
+      ? '<option value="">-- لا توجد مشاريع مسجلة في النظام بعد --</option>'
+      : (projects.length > 1 ? '<option value="">-- اختر المشروع أو الورشة --</option>' : '') +
+        projects.map((p) => `<option value="${p._id}">${p.projectCode ? escapeHtml(p.projectCode) + ' — ' : ''}${escapeHtml(p.name)}</option>`).join('');
 
     const content = `
       <form id="form-popup-quick-request">
@@ -665,8 +680,7 @@ export async function renderRequests(container) {
         <div class="form-group" style="margin-bottom: 1rem;">
           <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">المشروع / الورشة الوجهة *</label>
           <select id="popup-quick-project" class="form-select" required style="font-size: 0.9rem; padding: 0.6rem;">
-            <option value="">-- اختر المشروع أو الورشة --</option>
-            ${projects.map((p) => `<option value="${p._id}">${p.projectCode} — ${p.name}</option>`).join('')}
+            ${optionsHtml}
           </select>
         </div>
 
@@ -713,20 +727,25 @@ export async function renderRequests(container) {
       title: '💬 إنشاء طلب ورشة فوري',
       content,
       confirmText: '🚀 إرسال الطلب الفوري',
-      onConfirm: async () => {
-        const projectId = document.getElementById('popup-quick-project')?.value;
-        const textContent = document.getElementById('popup-quick-text')?.value.trim();
-        const isUrgent = document.getElementById('popup-quick-urgent')?.checked;
+      onConfirm: async (modalEl) => {
+        const container = modalEl || modal;
+        const projectSelect = container?.querySelector('#popup-quick-project') || document.getElementById('popup-quick-project');
+        const textInput = container?.querySelector('#popup-quick-text') || document.getElementById('popup-quick-text');
+        const urgentCheckbox = container?.querySelector('#popup-quick-urgent') || document.getElementById('popup-quick-urgent');
+
+        const projectId = projectSelect ? projectSelect.value.trim() : '';
+        const textContent = textInput ? textInput.value.trim() : '';
+        const isUrgent = urgentCheckbox ? urgentCheckbox.checked : false;
 
         if (!projectId) {
           showToast('الرجاء اختيار المشروع أو الورشة أولاً', 'warning');
-          document.getElementById('popup-quick-project')?.focus();
+          projectSelect?.focus();
           return false;
         }
 
         if (!textContent) {
           showToast('الرجاء كتابة المواد المطلوبة في الحقل', 'warning');
-          document.getElementById('popup-quick-text')?.focus();
+          textInput?.focus();
           return false;
         }
 
@@ -739,7 +758,7 @@ export async function renderRequests(container) {
           });
 
           playSuccessChime();
-          showToast('🚀 تم إرسال طلب الورشة الفوري بنجاح ووصل للجميع!', 'success');
+          showToast('🚀 تم إرسال طلب الورشة الفوري بنجاح وظهر في القائمة!', 'success');
           loadRequests();
           return true;
         } catch (err) {

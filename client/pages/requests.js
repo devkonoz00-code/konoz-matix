@@ -10,6 +10,7 @@ import {
   escapeHtml,
   openImageLightboxModal,
   playSuccessChime,
+  playConfirmBeep,
 } from '../js/app.js';
 import { i18n } from '../js/i18n.js';
 
@@ -31,10 +32,14 @@ export async function renderRequests(container) {
           استقبال واعتماد وتجهيز طلبات المواد من عمال الورشات والمشاريع
         </p>
       </div>
-      <button class="btn btn-primary btn-sm" id="btn-create-request" style="font-weight: 700; padding: 0.45rem 0.9rem; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span data-i18n="btn_new_request">+ طلب مواد جديد</span>
-      </button>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-primary btn-sm" id="btn-create-quick-request" style="font-weight: 800; padding: 0.45rem 1rem; border-radius: var(--radius-md); background: linear-gradient(135deg, #7c3aed, #4f46e5); border: none; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4); display: flex; align-items: center; gap: 0.4rem;">
+          <span>💬 + طلب ورشة فوري</span>
+        </button>
+        <button class="btn btn-outline btn-sm" id="btn-create-request" style="font-weight: 700; padding: 0.45rem 0.85rem; border-radius: var(--radius-md);">
+          <span>📦 + طلب كتالوج قياسي</span>
+        </button>
+      </div>
     </div>
 
     <!-- Main Navigation Tabs: Active vs Archive -->
@@ -595,6 +600,230 @@ export async function renderRequests(container) {
   document.getElementById('req-search-input')?.addEventListener('input', renderFilteredData);
   document.getElementById('req-type-filter')?.addEventListener('change', loadRequests);
   document.getElementById('req-project-filter')?.addEventListener('change', loadRequests);
+
+  // High-performance client-side image compression for mobile phones
+  async function compressImageFile(file, maxWidth = 1400, maxHeight = 1400, quality = 0.82) {
+    if (!file || !file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Messenger-Style Quick Request Modal (Admin / Supervisor / All Roles)
+  document.getElementById('btn-create-quick-request')?.addEventListener('click', async () => {
+    const prjRes = await api.get('/projects?status=ACTIVE');
+    const projects = prjRes.data || [];
+    const currentUser = api.getCurrentUser();
+    let uploadedPhotoUrls = [];
+
+    const content = `
+      <form id="form-popup-quick-request">
+        <!-- Project Selector -->
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">المشروع / الورشة الوجهة *</label>
+          <select id="popup-quick-project" class="form-select" required style="font-size: 0.9rem; padding: 0.6rem;">
+            <option value="">-- اختر المشروع أو الورشة --</option>
+            ${projects.map((p) => `<option value="${p._id}">${p.projectCode} — ${p.name}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Messenger Textarea -->
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">نص الطلب وبيان المواد المطلوبة *</label>
+          <textarea id="popup-quick-text" class="form-control" rows="4" placeholder="✍️ اكتب هنا بالتفصيل ما تحتاجه (مثال: أحتاج 10 أكياس إسمنت، سلك ربط 2 لفة، 5 أقراص قطع حديد...)" required style="font-size: 0.95rem; line-height: 1.5; resize: vertical; border-radius: var(--radius-md); background: var(--bg-surface-elevated);"></textarea>
+        </div>
+
+        <!-- Urgency Toggle -->
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 0.65rem 0.85rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="font-size: 1.1rem;">⚡</span>
+            <span style="font-size: 0.88rem; font-weight: 700; color: #fff;">طلب عاجل جداً (Urgent Priority)</span>
+          </div>
+          <label class="switch" style="margin: 0; cursor: pointer;">
+            <input type="checkbox" id="popup-quick-urgent">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <!-- Photos Attachment Section -->
+        <div style="margin-bottom: 1.25rem;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.4rem; display: flex; justify-content: space-between;">
+            <span>📸 إرفاق صور المواد أو الفواتير (اختياري)</span>
+            <span style="font-size: 0.75rem; color: var(--accent-cyan);">ضغط فوري سحابي</span>
+          </label>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm btn-outline" id="btn-popup-camera" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
+              <span>📷 التقاط بالكاميرا</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-popup-gallery" style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
+              <span>🖼️ اختيار من المعرض</span>
+            </button>
+            <input type="file" id="popup-camera-input" accept="image/*" capture="environment" style="display: none;">
+            <input type="file" id="popup-gallery-input" accept="image/*" multiple style="display: none;">
+          </div>
+          <div id="popup-photos-preview" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;"></div>
+        </div>
+      </form>
+    `;
+
+    const modal = showModal({
+      title: '💬 إنشاء طلب ورشة فوري',
+      content,
+      confirmText: '🚀 إرسال الطلب الفوري',
+      onConfirm: async () => {
+        const projectId = document.getElementById('popup-quick-project')?.value;
+        const textContent = document.getElementById('popup-quick-text')?.value.trim();
+        const isUrgent = document.getElementById('popup-quick-urgent')?.checked;
+
+        if (!projectId) {
+          showToast('الرجاء اختيار المشروع أو الورشة أولاً', 'warning');
+          document.getElementById('popup-quick-project')?.focus();
+          return false;
+        }
+
+        if (!textContent) {
+          showToast('الرجاء كتابة المواد المطلوبة في الحقل', 'warning');
+          document.getElementById('popup-quick-text')?.focus();
+          return false;
+        }
+
+        try {
+          await api.post('/requests/quick', {
+            projectId,
+            textContent,
+            priority: isUrgent ? 'URGENT' : 'NORMAL',
+            photoUrls: uploadedPhotoUrls,
+          });
+
+          playSuccessChime();
+          showToast('🚀 تم إرسال طلب الورشة الفوري بنجاح ووصل للجميع!', 'success');
+          loadRequests();
+          return true;
+        } catch (err) {
+          showToast(err.message, 'error');
+          return false;
+        }
+      },
+    });
+
+    // Handle Photos Upload & Preview
+    async function handlePopupImage(rawFile) {
+      if (!rawFile) return;
+      const previewContainer = modal.querySelector('#popup-photos-preview');
+      if (!previewContainer) return;
+
+      const loadingEl = document.createElement('div');
+      loadingEl.style.cssText = 'width: 60px; height: 60px; border-radius: var(--radius-sm); background: var(--bg-surface-elevated); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.65rem; border: 1px dashed var(--primary); color: var(--primary); text-align: center;';
+      loadingEl.innerHTML = '<span style="animation: pulse 1s infinite;">⚡ ضغط...</span>';
+      previewContainer.appendChild(loadingEl);
+
+      try {
+        const fileToUpload = await compressImageFile(rawFile);
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+        formData.append('entityType', 'MaterialRequest');
+        formData.append('entityId', currentUser?._id || 'temp');
+
+        const uploadRes = api.postFormData
+          ? await api.postFormData('/attachments', formData)
+          : await api.post('/attachments', formData);
+        const url = uploadRes.data?.url || uploadRes.url || uploadRes.data?.attachment?.url;
+
+        if (!url) throw new Error('فشل الحصول على رابط الصورة');
+
+        uploadedPhotoUrls.push(url);
+        playConfirmBeep();
+        renderPopupPhotos();
+      } catch (err) {
+        loadingEl.remove();
+        showToast(err.message || 'فشل رفع الصورة', 'error');
+      }
+    }
+
+    function renderPopupPhotos() {
+      const previewContainer = modal.querySelector('#popup-photos-preview');
+      if (!previewContainer) return;
+
+      previewContainer.innerHTML = uploadedPhotoUrls.map((url, idx) => `
+        <div style="position: relative; width: 60px; height: 60px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); background: #000;">
+          <img src="${escapeHtml(url)}" style="width: 100%; height: 100%; object-fit: cover;" alt="صورة المادة">
+          <button type="button" class="btn-remove-popup-photo" data-idx="${idx}" style="position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(239,68,68,0.9); color: #fff; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;" title="حذف الصورة">&times;</button>
+        </div>
+      `).join('');
+
+      previewContainer.querySelectorAll('.btn-remove-popup-photo').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const idx = parseInt(btn.dataset.idx, 10);
+          uploadedPhotoUrls.splice(idx, 1);
+          renderPopupPhotos();
+        });
+      });
+    }
+
+    modal.querySelector('#btn-popup-camera')?.addEventListener('click', () => {
+      modal.querySelector('#popup-camera-input')?.click();
+    });
+
+    modal.querySelector('#btn-popup-gallery')?.addEventListener('click', () => {
+      modal.querySelector('#popup-gallery-input')?.click();
+    });
+
+    modal.querySelector('#popup-camera-input')?.addEventListener('change', (e) => {
+      if (e.target.files?.[0]) handlePopupImage(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    modal.querySelector('#popup-gallery-input')?.addEventListener('change', (e) => {
+      if (e.target.files) {
+        Array.from(e.target.files).forEach((f) => handlePopupImage(f));
+      }
+      e.target.value = '';
+    });
+  });
 
   // New Request Modal (Standard Catalog)
   document.getElementById('btn-create-request').addEventListener('click', async () => {

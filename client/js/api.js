@@ -35,6 +35,10 @@ class ApiClient {
     }
   }
 
+  getUser() {
+    return this.getCurrentUser();
+  }
+
   setCurrentUser(user) {
     if (user) {
       localStorage.setItem('matix_user', JSON.stringify(user));

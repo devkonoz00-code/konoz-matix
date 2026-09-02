@@ -90,7 +90,7 @@ export const SUPPLIER_CATEGORIES = {
 export async function renderSuppliers(container) {
   document.getElementById('page-title').textContent = 'الموردين والمتعاملين';
 
-  const currentUser = api.getUser();
+  const currentUser = api.getCurrentUser();
   const isAdmin = currentUser?.role === 'ADMIN';
 
   let currentCategory = 'ALL';
